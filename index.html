@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceBridge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A2540; --ink2:#3B5573; --muted:#6B7F99;
+  --bg:#EEF4F9; --paper:#FFFFFF; --line:#D5E1EC;
+  --sky:#1C8FC4; --sky-deep:#0F6A96; --sky-soft:#D9EEF8;
+  --gold:#F2B705; --gold-soft:#FFF3C4;
+  --ok:#1FA971; --bad:#D94848;
+  --r-lg:28px; --r-md:18px; --r-sm:12px;
+  --fs:1;
+  --display:'Unbounded', system-ui, sans-serif;
+  --body:'Golos Text', system-ui, sans-serif;
+}
+[data-theme="dark"]{
+  --ink:#F2F7FC; --ink2:#C3D3E4; --muted:#8FA4BD;
+  --bg:#07192C; --paper:#0E2540; --line:#1F3B5C;
+  --sky:#3DB3E6; --sky-deep:#7FD0F2; --sky-soft:#123A5C;
+  --gold:#FFC81F; --gold-soft:#3A3208;
+}
+[data-size="large"]{ --fs:1.18 }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:calc(17px*var(--fs));line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+.side{position:sticky;top:0;height:100vh;padding:28px 18px;display:flex;flex-direction:column;gap:6px;background:var(--paper);border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;padding:0 10px 26px}
+.brand b{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.02em}
+.nav{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r-md);border:0;background:none;text-align:left;font-weight:600;font-size:calc(16px*var(--fs));color:var(--ink2)}
+.nav svg{width:24px;height:24px;flex:none}
+.nav:hover{background:var(--bg)}
+.nav[aria-current="page"]{background:var(--ink);color:var(--paper)}
+[data-theme="dark"] .nav[aria-current="page"]{background:var(--sky);color:#06192c}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 6px}
+.ai-badge{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:10px 12px;border-radius:var(--r-sm);background:var(--bg)}
+.ai-badge i{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.ai-badge.on i{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 25%,transparent)}
+.lang{display:flex;background:var(--bg);border-radius:var(--r-sm);padding:4px}
+.lang button{flex:1;border:0;background:none;padding:8px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted)}
+.lang button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(10,37,64,.15)}
+
+/* ---------- main ---------- */
+main{padding:40px clamp(18px,4vw,56px) 120px;max-width:1280px;width:100%}
+.view{display:none}
+.view.active{display:block}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;margin:0;line-height:1.15}
+h1{font-size:calc(clamp(30px,4.4vw,54px)*var(--fs));font-weight:800}
+h2{font-size:calc(28px*var(--fs));font-weight:600}
+h3{font-size:calc(19px*var(--fs));font-weight:600}
+.lead{color:var(--ink2);font-size:calc(19px*var(--fs));max-width:60ch;margin:14px 0 0}
+.muted{color:var(--muted)}
+.head-row{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:28px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:999px;padding:14px 24px;font-weight:600;background:var(--ink);color:var(--paper);min-height:52px;transition:transform .12s}
+.btn:active{transform:scale(.97)}
+.btn.sky{background:var(--sky);color:#fff}
+.btn.gold{background:var(--gold);color:#1d1500}
+.btn.ghost{background:var(--paper);color:var(--ink);border:2px solid var(--line)}
+.btn.sm{min-height:40px;padding:8px 16px;font-size:15px}
+.btn svg{width:22px;height:22px}
+.btn[disabled]{opacity:.45;cursor:default}
+.chip{border:2px solid var(--line);background:var(--paper);border-radius:999px;padding:9px 16px;font-weight:500;font-size:calc(15px*var(--fs));display:inline-flex;gap:8px;align-items:center}
+.chip[aria-pressed="true"]{border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep)}
+.panel{background:var(--paper);border-radius:var(--r-lg);padding:28px;border:1px solid var(--line)}
+
+/* ---------- HOME ---------- */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;margin-bottom:56px}
+.hero h1{max-width:13ch}
+.bridge-demo{background:var(--ink);color:#fff;border-radius:var(--r-lg);padding:34px 32px;position:relative;overflow:hidden;min-height:300px;display:flex;flex-direction:column;justify-content:space-between}
+[data-theme="dark"] .bridge-demo{background:#0B3557}
+.bridge-demo .row-label{font-size:14px;color:#9EC3DD;margin-bottom:8px}
+.garbled{font-family:var(--display);font-size:calc(30px*var(--fs));letter-spacing:.06em;color:#9EC3DD;min-height:1.3em}
+.clean{font-family:var(--display);font-size:calc(30px*var(--fs));font-weight:600;min-height:2.6em;line-height:1.25}
+.clean .v{color:var(--gold)}
+.bridge-arc{height:58px;margin:18px 0;position:relative}
+.bridge-arc svg{width:100%;height:100%}
+.bridge-demo .ctx{position:absolute;top:22px;right:24px;font-size:13px;background:rgba(255,255,255,.1);padding:6px 12px;border-radius:999px;color:#CFE3F1}
+
+.modules{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:56px}
+.mod{border:0;text-align:left;background:var(--paper);border-radius:var(--r-lg);padding:26px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);min-height:230px;transition:border-color .15s}
+.mod:hover{border-color:var(--sky)}
+.mod .ico{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--sky-soft);color:var(--sky-deep)}
+.mod:nth-child(2) .ico{background:var(--gold-soft);color:#8a6400}
+[data-theme="dark"] .mod:nth-child(2) .ico{color:var(--gold)}
+.mod:nth-child(3) .ico{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.mod .ico svg{width:30px;height:30px}
+.mod p{margin:0;color:var(--ink2)}
+.mod .go{margin-top:auto;font-weight:600;color:var(--sky-deep)}
+
+.quick-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:56px}
+.qp{position:relative;border:2px solid var(--line);background:var(--paper);border-radius:var(--r-md);padding:20px;font-size:calc(19px*var(--fs));font-weight:600;text-align:left;min-height:84px;display:flex;align-items:center;gap:12px}
+.qp:hover{border-color:var(--sky)}
+.qp.speaking{border-color:var(--gold);background:var(--gold-soft)}
+.qp .del{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:0;background:var(--bg);display:none;place-items:center;font-size:16px;color:var(--bad)}
+.editing .qp .del{display:grid}
+.add-qp{display:none;gap:10px;margin:-40px 0 56px;flex-wrap:wrap}
+.editing + .add-qp{display:flex}
+.add-qp input{flex:1;min-width:220px;border:2px solid var(--line);border-radius:var(--r-md);padding:14px 16px;background:var(--paper)}
+
+.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.fact{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px}
+.fact .nums{display:flex;align-items:baseline;gap:16px;font-family:var(--display);font-weight:800;margin:10px 0 6px;flex-wrap:wrap}
+.fact .from{font-size:calc(34px*var(--fs));color:var(--muted);text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:var(--bad)}
+.fact .to{font-size:calc(46px*var(--fs));color:var(--sky-deep)}
+.fact small{color:var(--muted);font-size:13px}
+
+/* ---------- VOICE ---------- */
+.voice-grid{display:grid;grid-template-columns:280px 1fr;gap:22px;align-items:start}
+.ctx-col{display:flex;flex-direction:column;gap:22px}
+.ctx-col h3{font-size:15px;font-family:var(--body);font-weight:700;color:var(--muted);margin-bottom:10px}
+.ctx-list{display:flex;flex-wrap:wrap;gap:8px}
+.mic-stage{display:flex;flex-direction:column;align-items:center;gap:18px;padding:36px 20px 28px}
+.mic{width:168px;height:168px;border-radius:50%;border:0;background:var(--sky);color:#fff;display:grid;place-items:center;position:relative;box-shadow:0 18px 40px -14px var(--sky)}
+.mic svg{width:64px;height:64px;position:relative;z-index:1}
+.mic.listening{background:var(--bad);box-shadow:0 18px 40px -14px var(--bad)}
+.mic.listening::before,.mic.listening::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:3px solid var(--bad);opacity:.5;animation:ring 1.6s infinite}
+.mic.listening::after{animation-delay:.8s}
+@keyframes ring{from{transform:scale(.9);opacity:.6}to{transform:scale(1.35);opacity:0}}
+.wave{display:flex;gap:6px;align-items:center;height:48px}
+.wave span{width:7px;border-radius:4px;background:var(--sky);height:8px;transition:height .1s}
+.mic-label{font-weight:600;font-size:calc(19px*var(--fs))}
+.raw-box{width:100%}
+.raw-box label{display:block;font-weight:700;font-size:15px;color:var(--muted);margin-bottom:8px}
+.raw-box textarea{width:100%;min-height:86px;border:2px dashed var(--line);border-radius:var(--r-md);padding:16px;background:var(--bg);font-size:calc(22px*var(--fs));letter-spacing:.03em;resize:vertical}
+.examples{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:14px}
+.examples button{border:0;background:var(--bg);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--ink2)}
+.result{margin-top:22px;border-radius:var(--r-lg);background:var(--ink);color:#fff;padding:28px;display:none}
+[data-theme="dark"] .result{background:#0B3557}
+.result.show{display:block}
+.result .out{font-family:var(--display);font-weight:600;font-size:calc(clamp(24px,3vw,36px)*var(--fs));line-height:1.25;margin:6px 0 18px}
+.result .meta{display:flex;gap:14px;align-items:center;color:#9EC3DD;font-size:14px;flex-wrap:wrap}
+.conf{width:120px;height:8px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+.conf i{display:block;height:100%;background:var(--gold)}
+.alts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.alts button{border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:999px;padding:8px 14px;font-size:15px;text-align:left}
+.alts button:hover{background:rgba(255,255,255,.1)}
+.result .actions{display:flex;gap:10px;flex-wrap:wrap}
+.thinking{display:inline-flex;gap:5px}
+.thinking i{width:8px;height:8px;border-radius:50%;background:var(--gold);animation:blink 1s infinite}
+.thinking i:nth-child(2){animation-delay:.15s}.thinking i:nth-child(3){animation-delay:.3s}
+@keyframes blink{50%{opacity:.2}}
+.history{margin-top:22px}
+.history h3{font-size:15px;font-family:var(--body);font-weight:700;color:var(--muted);margin-bottom:8px}
+.history li{display:flex;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.history ul{list-style:none;margin:0;padding:0}
+.history .r{color:var(--muted);font-size:14px;letter-spacing:.04em}
+
+/* ---------- EYES ---------- */
+.eye-top{display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:18px}
+.strip{background:var(--paper);border:2px solid var(--line);border-radius:var(--r-lg);padding:16px 20px;min-height:150px}
+.strip-cards{display:flex;gap:10px;flex-wrap:wrap;min-height:52px;align-items:center}
+.strip-cards .sc{display:inline-flex;align-items:center;gap:8px;background:var(--gold-soft);border-radius:14px;padding:8px 14px;font-weight:600;font-size:calc(18px*var(--fs))}
+.strip-cards .sc .e{font-size:26px}
+.strip-cards .plus{color:var(--muted);font-weight:700}
+.strip-empty{color:var(--muted)}
+.strip-out{font-family:var(--display);font-weight:600;font-size:calc(clamp(20px,2.4vw,30px)*var(--fs));margin-top:12px;line-height:1.25;color:var(--sky-deep);min-height:1.3em}
+.strip .alts button{border-color:var(--line);color:var(--ink2);font-size:14px}
+.strip .alts{margin:10px 0 0}
+.eye-actions{display:grid;grid-template-rows:repeat(3,1fr);gap:10px;width:200px}
+.dw-btn{position:relative;border:0;border-radius:var(--r-md);font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;font-size:calc(17px*var(--fs));min-height:56px;overflow:hidden}
+.dw-btn svg{width:24px;height:24px}
+.dw-btn.speak{background:var(--gold);color:#1d1500}
+.dw-btn.back{background:var(--paper);border:2px solid var(--line)}
+.dw-btn.clear{background:var(--paper);border:2px solid var(--line);color:var(--bad)}
+.eye-bar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.cats{display:flex;gap:8px;flex-wrap:wrap}
+.cat{position:relative;overflow:hidden;border:2px solid var(--line);background:var(--paper);border-radius:999px;padding:12px 20px;font-weight:600;font-size:calc(16px*var(--fs))}
+.cat[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.mode{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:flex;background:var(--paper);border:2px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--sky);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:22px}
+.card{position:relative;overflow:hidden;border:3px solid var(--line);background:var(--paper);border-radius:var(--r-lg);aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:calc(20px*var(--fs))}
+.card .e{font-size:calc(64px*var(--fs));line-height:1}
+.card.pick{animation:pick .45s}
+@keyframes pick{40%{transform:scale(.92);border-color:var(--gold)}}
+.card.add{border-style:dashed;color:var(--muted);font-weight:600;font-size:16px}
+.card.add .e{font-size:44px}
+/* dwell ring */
+[data-dwell]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:conic-gradient(from -90deg,color-mix(in srgb,var(--gold) 55%,transparent) calc(var(--dw,0)*360deg),transparent 0);opacity:0;transition:opacity .15s}
+[data-dwell].dwelling::after{opacity:1}
+.gaze-dot{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:4px solid var(--gold);background:color-mix(in srgb,var(--gold) 25%,transparent);pointer-events:none;z-index:90;display:none;transition:transform .05s}
+.eye-note{font-size:14px;color:var(--muted);margin-top:18px}
+.calib{position:fixed;inset:0;z-index:80;background:color-mix(in srgb,var(--bg) 96%,transparent);display:none}
+.calib.show{display:block}
+.calib .msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;max-width:460px;padding:20px}
+.calib .pt{position:absolute;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;border:0;background:var(--bad);color:#fff;font-weight:700;font-size:13px}
+.calib .pt.done{background:var(--ok)}
+#webgazerVideoContainer{bottom:12px!important;top:auto!important;right:auto!important;left:30px!important;bottom:190px!important;border-radius:14px;overflow:hidden;z-index:85!important;pointer-events:none!important;opacity:.85}
+#webgazerVideoContainer *{pointer-events:none!important}
+.addcard-form{display:none;margin-top:18px;gap:10px;flex-wrap:wrap;align-items:center}
+.addcard-form.show{display:flex}
+.addcard-form input{border:2px solid var(--line);border-radius:var(--r-md);padding:12px 14px;background:var(--paper)}
+
+/* camera gaze mode: fewer, larger targets */
+.gaze-on #v-eyes .head-row{display:none}
+.gaze-on #v-eyes .grid{grid-template-columns:repeat(4,1fr);gap:clamp(24px,3vw,48px)}
+.gaze-on #v-eyes .card{aspect-ratio:auto;min-height:24vh}
+.gaze-on #v-eyes .card.add{display:none}
+.gaze-on #v-eyes .cat{padding:16px 26px}
+.gaze-on #v-eyes .cats{gap:16px}
+.gaze-on .gaze-dot{width:26px;height:26px;margin:-13px 0 0 -13px;border-width:3px;opacity:.7}
+.gaze-dot{left:0;top:0;transition:opacity .2s}
+.calib .msg{transition:top .2s}
+.calib .pt{transition:transform .15s}
+
+/* ---------- THERAPY ---------- */
+.reminder{display:flex;gap:18px;align-items:center;background:var(--gold-soft);border-radius:var(--r-lg);padding:18px 22px;margin-bottom:22px}
+.reminder .bell{font-size:30px}
+.reminder p{margin:0;flex:1}
+.reminder.hide{display:none}
+.ther-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:start}
+.coach{display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center}
+.coach svg.dos{width:240px;height:240px}
+.dos path.mouth{transition:d .45s ease}
+.dos .tongue{transition:transform .35s ease;opacity:0}
+.dos.clock .tongue{opacity:1;animation:tongue 1.4s infinite ease-in-out}
+@keyframes tongue{0%,100%{transform:translateX(-16px)}50%{transform:translateX(16px)}}
+.dos .lid{transform-origin:center;animation:lid 4s infinite}
+@keyframes lid{0%,92%,100%{transform:scaleY(0)}95%{transform:scaleY(1)}}
+.bubble{display:inline-block;background:var(--sky-soft);color:var(--sky-deep);font-family:var(--display);font-weight:800;font-size:36px;border-radius:18px;padding:6px 18px;min-width:64px;text-align:center}
+.step-name{font-size:calc(26px*var(--fs));margin:4px 0 8px}
+.step-desc{color:var(--ink2);margin:0 0 18px}
+.timer{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.timer .bar{flex:1;height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
+.timer .bar i{display:block;height:100%;background:var(--sky);width:0;transition:width .25s linear}
+.timer b{font-family:var(--display);font-size:22px;min-width:3ch;text-align:right}
+.steps-dots{display:flex;gap:6px;margin-bottom:14px}
+.steps-dots i{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.steps-dots i.done{background:var(--ok)}
+.steps-dots i.cur{background:var(--sky)}
+.word-target{font-family:var(--display);font-weight:800;font-size:calc(44px*var(--fs));margin:6px 0}
+.score{font-weight:700}
+.score.good{color:var(--ok)} .score.mid{color:#B07D00} .score.low{color:var(--bad)}
+.ex-list{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ex-list li{display:flex;gap:10px;align-items:center;background:var(--bg);border-radius:var(--r-sm);padding:12px 14px;font-weight:500}
+.ex-list li span{font-size:22px}
+.prog-big{display:flex;align-items:baseline;gap:10px;font-family:var(--display);font-weight:800;margin:10px 0 4px}
+.prog-big b{font-size:calc(56px*var(--fs));color:var(--ok)}
+.prog-bar{height:14px;background:var(--bg);border-radius:7px;overflow:hidden;margin:8px 0 18px}
+.prog-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--sky),var(--ok));width:0;transition:width .6s}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+.stats3 div{background:var(--bg);border-radius:var(--r-sm);padding:12px;text-align:center}
+.stats3 b{display:block;font-family:var(--display);font-size:24px}
+.stats3 span{font-size:13px;color:var(--muted)}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;font-size:13px}
+.cal .dn{color:var(--muted);font-weight:600;padding-bottom:4px}
+.cal .d{aspect-ratio:1/1;display:grid;place-items:center;border-radius:10px;background:var(--bg);font-weight:500}
+.cal .d.done{background:var(--ok);color:#fff;font-weight:700}
+.cal .d.today{outline:2px solid var(--sky);outline-offset:-2px}
+.spark{width:100%;height:90px;margin-top:18px}
+
+/* ---------- ABOUT ---------- */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:26px 0 48px;position:relative}
+.pipe{padding:22px 22px 22px 0;position:relative}
+.pipe .n{width:44px;height:44px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--display);font-weight:800;margin-bottom:14px;position:relative;z-index:1}
+.pipe:nth-child(3) .n{background:var(--gold);color:#1d1500}
+.pipe::before{content:"";position:absolute;top:44px;left:44px;right:0;height:3px;background:var(--line)}
+.pipe:last-child::before{display:none}
+.pipe p{margin:6px 0 0;color:var(--ink2);font-size:15px}
+.cmp{width:100%;border-collapse:collapse;background:var(--paper);border-radius:var(--r-lg);overflow:hidden;margin:22px 0 48px}
+.cmp th,.cmp td{padding:16px 18px;text-align:left;border-bottom:1px solid var(--line);font-size:15px;vertical-align:top}
+.cmp th{font-weight:700;color:var(--muted);font-size:14px}
+.cmp tr:last-child td{border-bottom:0;background:var(--sky-soft);font-weight:600}
+.cmp td:first-child{font-weight:600}
+.y{color:var(--ok);font-weight:700}.n{color:var(--bad)}
+.team{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}
+.person{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px}
+.person .av{width:56px;height:56px;border-radius:50%;background:var(--sky-soft);color:var(--sky-deep);display:grid;place-items:center;font-family:var(--display);font-weight:800;margin-bottom:12px}
+.person p{margin:4px 0 0;color:var(--muted);font-size:15px}
+.about-intro{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px}
+.about-intro p{margin:0 0 12px;color:var(--ink2)}
+
+/* ---------- modal & toast ---------- */
+.modal{position:fixed;inset:0;background:rgba(5,20,38,.55);display:none;place-items:center;z-index:100;padding:20px}
+.modal.show{display:grid}
+.sheet{background:var(--paper);border-radius:var(--r-lg);padding:28px;width:min(560px,100%);max-height:90vh;overflow:auto}
+.sheet h2{margin-bottom:18px}
+.set{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-top:1px solid var(--line)}
+.set label{font-weight:600}
+.set small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.set input[type=range]{width:160px}
+.set input[type=password]{width:100%;border:2px solid var(--line);border-radius:var(--r-sm);padding:10px;background:var(--bg)}
+.switch{width:52px;height:30px;border-radius:15px;border:0;background:var(--line);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .15s}
+.switch[aria-checked="true"]{background:var(--sky)}
+.switch[aria-checked="true"]::after{left:26px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--paper);padding:14px 22px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:120;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.mobile-top{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:1100px){
+  .hero,.ther-grid,.about-intro{grid-template-columns:1fr}
+  .voice-grid{grid-template-columns:1fr}
+  .modules{grid-template-columns:1fr 1fr}
+  .team{grid-template-columns:1fr 1fr}
+}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;top:auto;bottom:0;left:0;right:0;height:auto;flex-direction:row;padding:8px;z-index:60;border-right:0;border-top:1px solid var(--line);justify-content:space-around}
+  .brand,.side-foot{display:none}
+  .nav{flex-direction:column;gap:4px;padding:8px 6px;font-size:11px;flex:1;align-items:center;text-align:center}
+  .mobile-top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+  .mobile-top b{font-family:var(--display);font-weight:800}
+  main{padding:24px 16px 110px}
+  .modules,.facts,.team,.pipeline{grid-template-columns:1fr}
+  .pipe::before{display:none}
+  .eye-top{grid-template-columns:1fr}
+  .eye-actions{width:auto;grid-template-rows:none;grid-template-columns:repeat(3,1fr)}
+  .grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .coach{grid-template-columns:1fr;justify-items:center;text-align:center}
+  .coach svg.dos{width:180px;height:180px}
+  .ex-list{grid-template-columns:1fr}
+  .cmp{display:block;overflow-x:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="mobile-top">
+  <div style="display:flex;gap:10px;align-items:center"><span id="logoM"></span><b>VoiceBridge</b></div>
+  <div style="display:flex;gap:8px">
+    <button class="chip" id="langM" aria-label="Язык">ҚАЗ</button>
+    <button class="chip" data-open-settings aria-label="Настройки">⚙︎</button>
+  </div>
+</div>
+<div class="app">
+  <nav class="side" aria-label="Разделы">
+    <div class="brand"><span id="logo"></span><b>VoiceBridge</b></div>
+    <button class="nav" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span data-i="nav_home"></span></button>
+    <button class="nav" data-go="voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span data-i="nav_voice"></span></button>
+    <button class="nav" data-go="eyes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span data-i="nav_eyes"></span></button>
+    <button class="nav" data-go="therapy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/><path d="M8 12h2l1-2 2 4 1-2h2"/></svg><span data-i="nav_therapy"></span></button>
+    <button class="nav" data-go="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span data-i="nav_about"></span></button>
+    <div class="side-foot">
+      <div class="ai-badge" id="aiBadge"><i></i><span id="aiBadgeText"></span></div>
+      <div class="lang" role="group" aria-label="Тіл / Язык">
+        <button data-lang="kk">Қазақша</button>
+        <button data-lang="ru">Русский</button>
+      </div>
+      <button class="nav" data-open-settings style="padding:12px 14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i="settings"></span></button>
+    </div>
+  </nav>
+
+  <main>
+  <!-- ================= HOME ================= -->
+  <section class="view" id="v-home">
+    <div class="hero">
+      <div>
+        <h1 data-i="hero_title"></h1>
+        <p class="lead" data-i="hero_lead"></p>
+        <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap">
+          <button class="btn sky" data-go="voice"><span data-i="try_voice"></span></button>
+          <button class="btn ghost" data-go="eyes"><span data-i="try_eyes"></span></button>
+        </div>
+      </div>
+      <div class="bridge-demo" aria-live="polite">
+        <span class="ctx" id="demoCtx"></span>
+        <div>
+          <div class="row-label" data-i="demo_heard"></div>
+          <div class="garbled" id="demoRaw"></div>
+        </div>
+        <div class="bridge-arc"><svg viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 58 Q200 -30 400 58" fill="none" stroke="#2E6E98" stroke-width="3"/>
+          <path id="arcFill" d="M0 58 Q200 -30 400 58" fill="none" stroke="#F2B705" stroke-width="5" stroke-linecap="round" stroke-dasharray="520" stroke-dashoffset="520"/>
+          <g stroke="#2E6E98" stroke-width="2">
+            <line x1="60" y1="30" x2="60" y2="60"/><line x1="120" y1="12" x2="120" y2="60"/><line x1="200" y1="4" x2="200" y2="60"/><line x1="280" y1="12" x2="280" y2="60"/><line x1="340" y1="30" x2="340" y2="60"/>
+          </g></svg></div>
+        <div>
+          <div class="row-label" data-i="demo_said"></div>
+          <div class="clean" id="demoClean"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modules">
+      <button class="mod" data-go="voice">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+        <h3 data-i="m1_t"></h3><p data-i="m1_d"></p><span class="go" data-i="open"></span>
+      </button>
+      <button class="mod" data-go="eyes">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <h3 data-i="m2_t"></h3><p data-i="m2_d"></p><span class="go" data-i="open"></span>
+      </button>
+      <button class="mod" data-go="therapy">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg></span>
+        <h3 data-i="m3_t"></h3><p data-i="m3_d"></p><span class="go" data-i="open"></span>
+      </button>
+    </div>
+
+    <div class="quick-head">
+      <div><h2 data-i="quick_t"></h2><p class="muted" style="margin:6px 0 0" data-i="quick_d"></p></div>
+      <button class="btn ghost sm" id="editQuick" data-i="edit"></button>
+    </div>
+    <div class="quick" id="quick"></div>
+    <div class="add-qp"><input id="newQp" maxlength="80"><button class="btn sm" id="addQp" data-i="add"></button></div>
+
+    <h2 style="margin-bottom:18px" data-i="facts_t"></h2>
+    <div class="facts">
+      <div class="fact"><h3 data-i="f1_t"></h3><div class="nums"><span class="from">72%</span><span class="to">15–18%</span></div><p class="muted" style="margin:0" data-i="f1_d"></p><small data-i="f1_s"></small></div>
+      <div class="fact"><h3 data-i="f2_t"></h3><div class="nums"><span class="from">2–4</span><span class="to">15–20</span></div><p class="muted" style="margin:0" data-i="f2_d"></p><small data-i="f2_s"></small></div>
+    </div>
+  </section>
+
+  <!-- ================= VOICE ================= -->
+  <section class="view" id="v-voice">
+    <div class="head-row"><div><h1 data-i="voice_t"></h1><p class="lead" data-i="voice_d"></p></div></div>
+    <div class="voice-grid">
+      <aside class="ctx-col panel">
+        <div><h3 data-i="loc_t"></h3><div class="ctx-list" id="locs"></div></div>
+        <div><h3 data-i="topic_t"></h3><div class="ctx-list" id="topics"></div></div>
+        <div class="muted" style="font-size:14px" data-i="ctx_hint"></div>
+      </aside>
+      <div>
+        <div class="panel">
+          <div class="mic-stage">
+            <button class="mic" id="mic" aria-label="Микрофон"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+            <div class="wave" id="wave" aria-hidden="true"></div>
+            <div class="mic-label" id="micLabel"></div>
+          </div>
+          <div class="raw-box">
+            <label for="raw" data-i="raw_t"></label>
+            <textarea id="raw" spellcheck="false"></textarea>
+            <div class="examples"><span class="muted" data-i="examples"></span><span id="exBtns"></span></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+            <button class="btn sky" id="interpret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg><span data-i="interpret"></span></button>
+            <button class="btn ghost" id="clearRaw" data-i="clear"></button>
+          </div>
+        </div>
+        <div class="result" id="result" aria-live="polite">
+          <div class="meta"><span data-i="ai_result"></span></div>
+          <div class="out" id="out"></div>
+          <div class="alts" id="alts"></div>
+          <div class="actions">
+            <button class="btn gold" id="speakOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><span data-i="speak"></span></button>
+            <button class="btn ghost sm" id="copyOut" data-i="copy"></button>
+          </div>
+          <div class="meta" style="margin-top:16px"><span data-i="confidence"></span><span class="conf"><i id="confBar"></i></span><span id="confTxt"></span><span id="srcTxt"></span></div>
+        </div>
+        <div class="history"><h3 data-i="history"></h3><ul id="hist"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= EYES ================= -->
+  <section class="view" id="v-eyes">
+    <div class="head-row"><div><h1 data-i="eyes_t"></h1><p class="lead" data-i="eyes_d"></p></div></div>
+    <div class="eye-top">
+      <div class="strip" aria-live="polite">
+        <div class="strip-cards" id="stripCards"></div>
+        <div class="strip-out" id="stripOut"></div>
+        <div class="alts" id="stripAlts"></div>
+      </div>
+      <div class="eye-actions">
+        <button class="dw-btn speak" data-dwell id="eSpeak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg><span data-i="speak"></span></button>
+        <button class="dw-btn back" data-dwell id="eBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6"/></svg><span data-i="backspace"></span></button>
+        <button class="dw-btn clear" data-dwell id="eClear"><span data-i="clear"></span></button>
+      </div>
+    </div>
+    <div class="eye-bar">
+      <div class="cats" id="cats"></div>
+      <div class="mode">
+        <div class="seg" role="group" id="modeSeg">
+          <button data-mode="touch" data-i="mode_touch"></button>
+          <button data-mode="mouse" data-i="mode_mouse"></button>
+          <button data-mode="camera" data-i="mode_camera"></button>
+        </div>
+        <button class="btn ghost sm" id="recal" style="display:none" data-i="calibrate"></button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="addcard-form" id="addForm">
+      <input id="acEmoji" maxlength="4" style="width:80px;text-align:center;font-size:24px" value="⭐">
+      <input id="acLabel" maxlength="24" style="flex:1;min-width:200px">
+      <button class="btn sm" id="acSave" data-i="add"></button>
+      <button class="btn ghost sm" id="acCancel" data-i="cancel"></button>
+    </div>
+    <p class="eye-note" id="eyeNote"></p>
+  </section>
+
+  <!-- ================= THERAPY ================= -->
+  <section class="view" id="v-therapy">
+    <div class="head-row"><div><h1 data-i="ther_t"></h1><p class="lead" data-i="ther_d"></p></div></div>
+    <div class="reminder" id="reminder"><span class="bell">🔔</span><p id="remText"></p><button class="btn sm" id="remStart" data-i="start"></button></div>
+    <div class="ther-grid">
+      <div class="panel">
+        <div class="coach">
+          <svg class="dos" id="dos" viewBox="0 0 200 200" aria-label="Дос">
+            <ellipse cx="100" cy="190" rx="60" ry="7" fill="currentColor" opacity=".08"/>
+            <path d="M100 14c48 0 80 30 80 84s-30 84-80 84-80-30-80-84 32-84 80-84z" fill="#1C8FC4"/>
+            <path d="M60 30c8-10 22-16 40-16" stroke="#7FD0F2" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <circle cx="56" cy="122" r="12" fill="#F2B705" opacity=".55"/><circle cx="144" cy="122" r="12" fill="#F2B705" opacity=".55"/>
+            <g><circle cx="72" cy="90" r="15" fill="#fff"/><circle cx="74" cy="92" r="7" fill="#0A2540"/>
+            <circle cx="128" cy="90" r="15" fill="#fff"/><circle cx="126" cy="92" r="7" fill="#0A2540"/>
+            <g class="lid"><rect x="56" y="74" width="32" height="32" rx="16" fill="#1C8FC4"/><rect x="112" y="74" width="32" height="32" rx="16" fill="#1C8FC4"/></g></g>
+            <path class="mouth" id="mouth" d="M72 135 Q100 152 128 135 Q100 160 72 135 Z" fill="#0A2540"/>
+            <ellipse class="tongue" cx="100" cy="142" rx="10" ry="7" fill="#FF7A8A"/>
+          </svg>
+          <div id="coachBody"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3 data-i="progress_t"></h3>
+        <div class="prog-big"><b id="clarity">—</b><span class="muted" data-i="clarity"></span></div>
+        <div class="prog-bar"><i id="clarityBar"></i></div>
+        <div class="stats3">
+          <div><b id="stSessions">0</b><span data-i="st_sessions"></span></div>
+          <div><b id="stStreak">0</b><span data-i="st_streak"></span></div>
+          <div><b id="stMonth">0</b><span data-i="st_month"></span></div>
+        </div>
+        <div class="cal-head"><h3 id="calTitle" style="font-size:16px"></h3></div>
+        <div class="cal" id="cal"></div>
+        <svg class="spark" id="spark" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn ghost sm" id="demoHist" data-i="demo_hist"></button>
+          <button class="btn ghost sm" id="notifBtn" data-i="notif"></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section class="view" id="v-about">
+    <h1 data-i="about_t" style="max-width:20ch"></h1>
+    <div class="about-intro">
+      <div><p data-i="about_p1"></p><p data-i="about_p2"></p></div>
+      <div><p data-i="about_p3"></p><p data-i="about_p4"></p></div>
+    </div>
+    <h2 style="margin-top:40px" data-i="arch_t"></h2>
+    <div class="pipeline">
+      <div class="pipe"><div class="n">1</div><h3 data-i="p1_t"></h3><p data-i="p1_d"></p></div>
+      <div class="pipe"><div class="n">2</div><h3 data-i="p2_t"></h3><p data-i="p2_d"></p></div>
+      <div class="pipe"><div class="n">3</div><h3 data-i="p3_t"></h3><p data-i="p3_d"></p></div>
+      <div class="pipe"><div class="n">4</div><h3 data-i="p4_t"></h3><p data-i="p4_d"></p></div>
+    </div>
+    <h2 data-i="cmp_t"></h2>
+    <table class="cmp" id="cmp"></table>
+    <h2 data-i="team_t"></h2>
+    <div class="team">
+      <div class="person"><div class="av">ОА</div><h3>Акситов Оразали</h3><p data-i="role_student"></p></div>
+      <div class="person"><div class="av">НА</div><h3>Нұрман Азат</h3><p data-i="role_student"></p></div>
+      <div class="person"><div class="av">СЖ</div><h3>Сайлаубай Жалғас Серікұлы</h3><p data-i="role_sup"></p></div>
+    </div>
+    <p class="muted" style="margin-top:22px" data-i="school"></p>
+  </section>
+  </main>
+</div>
+
+<div class="gaze-dot" id="gazeDot"></div>
+<div class="calib" id="calib"><div class="msg" id="calibMsg"></div></div>
+
+<div class="modal" id="settings" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h2 data-i="settings"></h2>
+    <div class="set"><label><span data-i="s_theme"></span><small data-i="s_theme_d"></small></label><button class="switch" role="switch" id="sTheme"></button></div>
+    <div class="set"><label><span data-i="s_size"></span><small data-i="s_size_d"></small></label><button class="switch" role="switch" id="sSize"></button></div>
+    <div class="set"><label><span data-i="s_tremor"></span><small data-i="s_tremor_d"></small></label><button class="switch" role="switch" id="sTremor"></button></div>
+    <div class="set"><label><span data-i="s_dwell"></span><small id="dwellVal"></small></label><input type="range" id="sDwell" min="600" max="2500" step="100"></div>
+    <div class="set"><label><span data-i="s_rate"></span><small id="rateVal"></small></label><input type="range" id="sRate" min="0.7" max="1.3" step="0.05"></div>
+    <div class="set"><label><span data-i="s_distort"></span><small data-i="s_distort_d"></small></label><button class="switch" role="switch" id="sDistort"></button></div>
+    <div class="set" style="display:block"><label><span data-i="s_key"></span><small data-i="s_key_d"></small></label><input type="password" id="sKey" placeholder="sk-ant-..." autocomplete="off" style="margin-top:10px"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn" id="closeSettings" data-i="done"></button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   VoiceBridge — прототип. Авторы проекта: Акситов О., Нұрман А.
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('vb_'+k); return v===null? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('vb_'+k, JSON.stringify(v)); }catch(e){} }
+};
+const S = Object.assign({lang:'kk', theme:'light', size:'normal', tremor:true, dwell:1200, rate:0.95, distort:false, loc:'home', topic:'health', mode:'touch', cat:'people', key:''}, store.get('settings', {}));
+const save = () => store.set('settings', S);
+
+/* ---------------- i18n ---------------- */
+const T = {
+ru:{
+ nav_home:'Главная', nav_voice:'Голос', nav_eyes:'Взгляд', nav_therapy:'Тренировки', nav_about:'О проекте', settings:'Настройки',
+ ai_on:'ИИ подключён', ai_off:'ИИ: офлайн-режим',
+ hero_title:'Каждый должен быть услышан',
+ hero_lead:'VoiceBridge понимает невнятную речь, собирает фразы из карточек, выбранных взглядом, и помогает восстанавливать голос ежедневными тренировками.',
+ try_voice:'Попробовать голос', try_eyes:'Управление взглядом',
+ demo_heard:'Обычная программа распознала', demo_said:'VoiceBridge понял',
+ m1_t:'Голос и ИИ', m1_d:'Для людей с дизартрией и афазией: говорите как можете — ИИ восстановит смысл с учётом темы и места.',
+ m2_t:'Карточки и взгляд', m2_d:'Для полностью парализованных: 2–3 карточки, выбранные глазами, превращаются в полную вежливую фразу.',
+ m3_t:'Тренировки', m3_d:'Артикуляционная гимнастика дома с помощником Досом, шкала прогресса и календарь занятий.',
+ open:'Открыть', quick_t:'Быстрые фразы', quick_d:'Нажмите — и фраза прозвучит сразу, без усилий.', edit:'Изменить', done:'Готово', add:'Добавить', cancel:'Отмена',
+ facts_t:'Почему это важно',
+ f1_t:'Ошибки распознавания (WER)', f1_d:'Обычные системы ошибаются в 72% слов при дизартрии. Контекстный ИИ снижает ошибки до 15–18%.', f1_s:'Источник: исследования на датасете TORGO; ожидаемый результат проекта',
+ f2_t:'Скорость общения, слов в минуту', f2_d:'Набор по буквам глазами — 2–4 слова в минуту. Карточки + ИИ-генерация фраз — 15–20.', f2_s:'Ожидаемый результат по моделированию проекта',
+ voice_t:'Голосовое общение', voice_d:'Нажмите на микрофон и говорите. ИИ учитывает место и тему разговора, чтобы понять вас точнее.',
+ loc_t:'Где вы находитесь', topic_t:'О чём разговор', ctx_hint:'Контекст помогает ИИ: «грл» дома — это «горло», а не «город».',
+ mic_idle:'Нажмите, чтобы говорить', mic_on:'Слушаю… нажмите ещё раз, чтобы закончить', mic_none:'Микрофон недоступен в этом браузере — введите текст вручную',
+ raw_t:'Что распознал микрофон (можно исправить вручную)', raw_ph:'например: у мн блт грл', examples:'Примеры:',
+ interpret:'Понять смысл', clear:'Очистить', ai_result:'VoiceBridge понял так:', speak:'Озвучить', copy:'Копировать', copied:'Скопировано',
+ confidence:'Уверенность', history:'Недавние фразы', src_ai:'· Claude', src_off:'· офлайн-словарь', thinking:'ИИ восстанавливает смысл…',
+ need_text:'Сначала скажите что-нибудь или введите текст', alt_hint:'Не то? Выберите вариант:',
+ eyes_t:'Карточки и взгляд', eyes_d:'Задержите взгляд на карточке — она добавится во фразу. ИИ сам составит полное предложение.',
+ strip_empty:'Выберите 2–3 карточки', backspace:'Назад', composing:'ИИ составляет фразу…',
+ mode_touch:'Касание', mode_mouse:'Курсор', mode_camera:'Камера', calibrate:'Калибровка',
+ note_touch:'Режим касания: просто нажимайте на карточки.', note_mouse:'Режим курсора имитирует взгляд: наведите курсор и подержите — карточка выберется через {s} с.',
+ note_camera:'Ай-трекинг через веб-камеру: смотрите на карточку {s} с, чтобы выбрать её. Сидите ровно, лицо должно быть хорошо освещено.',
+ cam_err_https:'Камера работает только по адресу https:// (например, на GitHub Pages), а не из файла на компьютере.', cam_err_browser:'Этот браузер не даёт доступа к камере. Откройте сайт в Google Chrome или Edge.', cam_err_denied:'Доступ к камере запрещён. Нажмите на значок замка слева от адреса сайта → Камера → Разрешить, затем обновите страницу.', cam_err_nocam:'Камера не найдена. Подключите веб-камеру и обновите страницу.', cam_err_busy:'Камера занята другой программой (Zoom, Teams и т. п.). Закройте её и попробуйте снова.', cam_err_load:'Не удалось загрузить модуль ай-трекинга. Проверьте интернет и обновите страницу.', cam_loading:'Загружаю модуль ай-трекинга…',
+ calib_t:'Калибровка взгляда', calib_d:'Смотрите прямо в центр красной точки и нажмите на неё 5 раз, не отводя взгляд. Голову держите неподвижно.', calib_done:'Калибровка завершена', calib_start:'Начать', calib_step:'Точка {n} из {m}', calib_redo:'Пройти заново', acc_t:'Проверка точности', acc_d:'Просто смотрите на зелёную точку 3 секунды. Ничего не нажимайте.', acc_good:'Точность хорошая', acc_mid:'Точность средняя', acc_bad:'Точность низкая', acc_noface:'Камера не видит лицо', acc_noface_d:'Сядьте прямо перед камерой, чтобы лицо было в рамке внизу экрана и хорошо освещено, и пройдите калибровку заново.', acc_res:'Средняя ошибка ≈ {e} px.', acc_tips:'Чтобы стало лучше: свет должен падать на лицо (не окно за спиной), камера — на уровне глаз, сидите на расстоянии 50–70 см и не двигайте головой. Затем пройдите калибровку заново.',
+ add_card:'Своя карточка', card_ph:'Подпись карточки',
+ cat_people:'Люди', cat_needs:'Просьбы', cat_food:'Еда и питьё', cat_body:'Самочувствие', cat_feel:'Чувства и ответы',
+ ther_t:'Тренировки речи', ther_d:'Короткая ежедневная гимнастика для губ, языка и голоса. Повторяйте за Досом.',
+ start:'Начать тренировку', next:'Дальше', skip:'Пропустить', finish:'Завершить', again:'Ещё раз',
+ progress_t:'Ваш прогресс', clarity:'индекс чёткости речи', st_sessions:'занятий', st_streak:'дней подряд', st_month:'в этом месяце',
+ demo_hist:'Показать пример истории', notif:'Включить напоминания', notif_on:'Напоминания включены', notif_off:'Браузер не разрешил уведомления — напоминание будет показано здесь',
+ coach_hello:'Привет! Я Дос', coach_intro:'Тренировка займёт около 3 минут: 5 упражнений и проверка произношения. Сядьте удобно перед экраном.',
+ ex_list:'Сегодня:', say_word:'Скажите слово', your_result:'Чёткость', listening:'Слушаю…', type_word:'Микрофон недоступен — нажмите «Дальше»',
+ finished_t:'Отличная работа!', finished_d:'Тренировка засчитана. Чёткость сегодня: {n}%. Возвращайтесь завтра — регулярность важнее длительности.',
+ rem:['Сегодня ещё не было тренировки. 3 минуты — и голос станет сильнее.','Мышцы речи любят регулярность. Начнём?','Каждая тренировка — шаг к тому, чтобы вас понимали с первого раза.'],
+ rem_done:'Сегодняшняя тренировка выполнена. Так держать!',
+ about_t:'Мост между мыслью и её пониманием',
+ about_p1:'Люди после инсульта, с ДЦП, травмами или БАС часто всё понимают и знают, что хотят сказать, — но окружающие и обычные программы их не понимают.',
+ about_p2:'Стандартное распознавание речи создано для чёткого произношения и при дизартрии превращает речь в бессмысленный набор букв.',
+ about_p3:'VoiceBridge объединяет три направления в одном приложении: распознавание атипичной речи, карточки с управлением взглядом и логопедические тренировки.',
+ about_p4:'Ключевая идея — контекстный анализ: ИИ не разбирает каждый звук «в лоб», а понимает смысл фразы по теме, месту и связям между словами.',
+ arch_t:'Как это работает',
+ p1_t:'Ввод', p1_d:'Голос через микрофон или взгляд через веб-камеру.', p2_t:'Первичная обработка', p2_d:'«Сырые» данные: искажённый текст или 2–3 выбранные карточки.',
+ p3_t:'ИИ-контекст', p3_d:'Модель учитывает место, тему и собирает правильную фразу.', p4_t:'Вывод', p4_d:'Чистый текст на экране и чёткая озвучка.',
+ cmp_t:'Сравнение с существующими решениями', team_t:'Команда проекта', role_student:'Ученик 11 класса, автор проекта', role_sup:'Руководитель, учитель физики',
+ school:'КГУ «Специализированная школа-лицей-интернат «Білім-Инновация» для одарённых детей ЗКО», Орал, 2026. Секция: Информатика.',
+ cmp_h:['Решение','Невнятная речь','Управление взглядом','Связные фразы','Реабилитация'],
+ cmp_r:[['Обычное распознавание речи (ASR)','✗ до 72% ошибок','✗','✗','✗'],['Карточки AAC','—','частично','✗ отдельные слова','✗'],['Клавиатура для глаз','—','✓','медленно: 2–4 слова/мин','✗'],['VoiceBridge','✓ контекстный ИИ','✓','✓ 15–20 слов/мин','✓']],
+ s_theme:'Тёмная тема', s_theme_d:'Меньше нагрузка на глаза вечером', s_size:'Крупный текст', s_size_d:'Для ослабленного зрения',
+ s_tremor:'Защита от случайных нажатий', s_tremor_d:'Игнорирует слишком быстрые повторные нажатия (тремор, спастика)',
+ s_dwell:'Время задержки взгляда', s_rate:'Скорость озвучки',
+ s_distort:'Демо: имитация нарушенной речи', s_distort_d:'Для показа жюри: искажает распознанный текст (убирает гласные), как это бывает при дизартрии',
+ s_key:'Ключ Claude API (необязательно)', s_key_d:'Нужен только для версии на своём сайте (GitHub Pages). Хранится только в этом браузере. Без ключа работает офлайн-словарь.',
+ sec:'с', tremor_block:'Слишком быстрое нажатие — проигнорировано'
+},
+kk:{
+ nav_home:'Басты бет', nav_voice:'Дауыс', nav_eyes:'Көзқарас', nav_therapy:'Жаттығулар', nav_about:'Жоба туралы', settings:'Баптаулар',
+ ai_on:'ЖИ қосулы', ai_off:'ЖИ: офлайн режим',
+ hero_title:'Әр адам естілуге лайық',
+ hero_lead:'VoiceBridge анық емес сөзді түсінеді, көзбен таңдалған карточкалардан сөйлем құрайды және күнделікті жаттығулар арқылы дауысты қалпына келтіруге көмектеседі.',
+ try_voice:'Дауысты сынау', try_eyes:'Көзқараспен басқару',
+ demo_heard:'Қарапайым бағдарлама таныды', demo_said:'VoiceBridge түсінді',
+ m1_t:'Дауыс және ЖИ', m1_d:'Дизартрия мен афазиясы бар адамдарға: қалай алсаңыз, солай сөйлеңіз — ЖИ тақырып пен орынға қарап мағынасын қалпына келтіреді.',
+ m2_t:'Карточкалар және көзқарас', m2_d:'Толық сал болған адамдарға: көзбен таңдалған 2–3 карточка толық, сыпайы сөйлемге айналады.',
+ m3_t:'Жаттығулар', m3_d:'Дос көмекшісімен үйде артикуляциялық жаттығу, прогресс шкаласы және сабақтар күнтізбесі.',
+ open:'Ашу', quick_t:'Жылдам фразалар', quick_d:'Басыңыз — фраза бірден дыбысталады.', edit:'Өзгерту', done:'Дайын', add:'Қосу', cancel:'Болдырмау',
+ facts_t:'Бұл неге маңызды',
+ f1_t:'Тану қателері (WER)', f1_d:'Дизартрия кезінде қарапайым жүйелер сөздердің 72%-ын қате таниды. Контекстік ЖИ қатені 15–18%-ға дейін азайтады.', f1_s:'Дереккөз: TORGO деректер жиынындағы зерттеулер; жобаның күтілетін нәтижесі',
+ f2_t:'Сөйлесу жылдамдығы, минутына сөз', f2_d:'Көзбен әріптеп теру — минутына 2–4 сөз. Карточкалар + ЖИ — 15–20 сөз.', f2_s:'Жобаны модельдеу бойынша күтілетін нәтиже',
+ voice_t:'Дауыспен сөйлесу', voice_d:'Микрофонды басып, сөйлеңіз. ЖИ сізді дәлірек түсіну үшін орын мен әңгіме тақырыбын ескереді.',
+ loc_t:'Қайдасыз', topic_t:'Не туралы әңгіме', ctx_hint:'Контекст ЖИ-ге көмектеседі: үйде «бсм» — бұл «басым».',
+ mic_idle:'Сөйлеу үшін басыңыз', mic_on:'Тыңдап тұрмын… аяқтау үшін қайта басыңыз', mic_none:'Бұл браузерде микрофон қолжетімсіз — мәтінді қолмен енгізіңіз',
+ raw_t:'Микрофон не таныды (қолмен түзетуге болады)', raw_ph:'мысалы: бсм ауырп тр', examples:'Мысалдар:',
+ interpret:'Мағынасын түсіну', clear:'Тазарту', ai_result:'VoiceBridge былай түсінді:', speak:'Дыбыстау', copy:'Көшіру', copied:'Көшірілді',
+ confidence:'Сенімділік', history:'Соңғы фразалар', src_ai:'· Claude', src_off:'· офлайн сөздік', thinking:'ЖИ мағынасын қалпына келтіруде…',
+ need_text:'Алдымен бірдеңе айтыңыз немесе мәтін енгізіңіз', alt_hint:'Дұрыс емес пе? Нұсқаны таңдаңыз:',
+ eyes_t:'Карточкалар және көзқарас', eyes_d:'Карточкаға көзіңізді тоқтатыңыз — ол фразаға қосылады. ЖИ толық сөйлемді өзі құрастырады.',
+ strip_empty:'2–3 карточка таңдаңыз', backspace:'Артқа', composing:'ЖИ сөйлем құрастыруда…',
+ mode_touch:'Басу', mode_mouse:'Курсор', mode_camera:'Камера', calibrate:'Калибрлеу',
+ note_touch:'Басу режимі: карточкаларды жай ғана басыңыз.', note_mouse:'Курсор режимі көзқарасты имитациялайды: курсорды апарып, ұстап тұрыңыз — карточка {s} с кейін таңдалады.',
+ note_camera:'Веб-камера арқылы ай-трекинг: таңдау үшін карточкаға {s} с қараңыз. Түзу отырыңыз, бетіңіз жақсы жарықталсын.',
+ cam_err_https:'Камера тек https:// мекенжайында жұмыс істейді (мысалы, GitHub Pages), компьютердегі файлдан емес.', cam_err_browser:'Бұл браузер камераға рұқсат бермейді. Сайтты Google Chrome немесе Edge-те ашыңыз.', cam_err_denied:'Камераға рұқсат жоқ. Мекенжай жолының сол жағындағы құлып белгісін басыңыз → Камера → Рұқсат беру, содан кейін бетті жаңартыңыз.', cam_err_nocam:'Камера табылмады. Веб-камераны қосып, бетті жаңартыңыз.', cam_err_busy:'Камераны басқа бағдарлама қолданып тұр (Zoom, Teams т.б.). Оны жауып, қайта көріңіз.', cam_err_load:'Ай-трекинг модулін жүктеу мүмкін болмады. Интернетті тексеріп, бетті жаңартыңыз.', cam_loading:'Ай-трекинг модулі жүктелуде…',
+ calib_t:'Көзқарасты калибрлеу', calib_d:'Қызыл нүктенің дәл ортасына қарап, көзіңізді алмай оны 5 рет басыңыз. Басыңызды қозғалтпаңыз.', calib_done:'Калибрлеу аяқталды', calib_start:'Бастау', calib_step:'{m} нүктенің {n}-сі', calib_redo:'Қайта өту', acc_t:'Дәлдікті тексеру', acc_d:'Жасыл нүктеге 3 секунд қараңыз. Ештеңе баспаңыз.', acc_good:'Дәлдік жақсы', acc_mid:'Дәлдік орташа', acc_bad:'Дәлдік төмен', acc_noface:'Камера бетті көрмей тұр', acc_noface_d:'Бетіңіз экранның төменгі жағындағы рамкада көрініп, жақсы жарықталатындай камераның дәл алдына отырыңыз да, калибрлеуді қайта өтіңіз.', acc_res:'Орташа қате ≈ {e} px.', acc_tips:'Жақсарту үшін: жарық бетке түссін (артта терезе болмасын), камера көз деңгейінде болсын, 50–70 см қашықтықта отырып, басыңызды қозғалтпаңыз. Содан кейін калибрлеуді қайта өтіңіз.',
+ add_card:'Өз карточкам', card_ph:'Карточка жазуы',
+ cat_people:'Адамдар', cat_needs:'Өтініштер', cat_food:'Тамақ пен сусын', cat_body:'Хал-жағдай', cat_feel:'Сезім мен жауап',
+ ther_t:'Сөйлеу жаттығулары', ther_d:'Ерін, тіл және дауысқа арналған қысқа күнделікті жаттығу. Достың артынан қайталаңыз.',
+ start:'Жаттығуды бастау', next:'Келесі', skip:'Өткізу', finish:'Аяқтау', again:'Тағы да',
+ progress_t:'Сіздің прогресіңіз', clarity:'сөйлеу анықтығы индексі', st_sessions:'сабақ', st_streak:'күн қатарынан', st_month:'осы айда',
+ demo_hist:'Тарих мысалын көрсету', notif:'Еске салғышты қосу', notif_on:'Еске салғыштар қосылды', notif_off:'Браузер хабарландыруға рұқсат бермеді — еске салу осында көрсетіледі',
+ coach_hello:'Сәлем! Мен Доспын', coach_intro:'Жаттығу шамамен 3 минутқа созылады: 5 жаттығу және айтылуды тексеру. Экран алдына ыңғайлы отырыңыз.',
+ ex_list:'Бүгін:', say_word:'Сөзді айтыңыз', your_result:'Анықтық', listening:'Тыңдап тұрмын…', type_word:'Микрофон қолжетімсіз — «Келесі» басыңыз',
+ finished_t:'Керемет жұмыс!', finished_d:'Жаттығу есептелді. Бүгінгі анықтық: {n}%. Ертең қайта келіңіз — ұзақтығынан гөрі тұрақтылық маңызды.',
+ rem:['Бүгін әлі жаттығу болған жоқ. 3 минут — және дауыс күштірек болады.','Сөйлеу бұлшықеттері тұрақтылықты жақсы көреді. Бастаймыз ба?','Әр жаттығу — сізді бірден түсінуге бір қадам.'],
+ rem_done:'Бүгінгі жаттығу орындалды. Жарайсыз!',
+ about_t:'Ой мен оның түсінігі арасындағы көпір',
+ about_p1:'Инсульттан кейін, БЦП, жарақат немесе БАС кезінде адамдар бәрін түсінеді, не айтқысы келетінін біледі — бірақ айналасындағылар мен қарапайым бағдарламалар оларды түсінбейді.',
+ about_p2:'Стандартты сөйлеуді тану анық айтылымға арналған және дизартрия кезінде сөзді мағынасыз әріптер жиынына айналдырады.',
+ about_p3:'VoiceBridge үш бағытты бір қосымшада біріктіреді: атиптік сөйлеуді тану, көзқараспен басқарылатын карточкалар және логопедиялық жаттығулар.',
+ about_p4:'Басты идея — контекстік талдау: ЖИ әр дыбысты жеке талдамайды, сөйлемнің мағынасын тақырып, орын және сөздер байланысы арқылы түсінеді.',
+ arch_t:'Бұл қалай жұмыс істейді',
+ p1_t:'Енгізу', p1_d:'Микрофон арқылы дауыс немесе веб-камера арқылы көзқарас.', p2_t:'Алғашқы өңдеу', p2_d:'«Шикі» деректер: бұрмаланған мәтін немесе таңдалған 2–3 карточка.',
+ p3_t:'ЖИ-контекст', p3_d:'Модель орын мен тақырыпты ескеріп, дұрыс сөйлем құрады.', p4_t:'Шығару', p4_d:'Экрандағы таза мәтін және анық дыбыстау.',
+ cmp_t:'Қолданыстағы шешімдермен салыстыру', team_t:'Жоба командасы', role_student:'11-сынып оқушысы, жоба авторы', role_sup:'Жетекші, физика пәнінің мұғалімі',
+ school:'«Дарынды балаларға арналған «Білім-Инновация» мамандандырылған лицей-интернаты» КММ, БҚО, Орал, 2026. Секция: Информатика.',
+ cmp_h:['Шешім','Анық емес сөз','Көзқараспен басқару','Байланысты сөйлем','Оңалту'],
+ cmp_r:[['Қарапайым сөйлеуді тану (ASR)','✗ 72%-ға дейін қате','✗','✗','✗'],['AAC карточкалары','—','ішінара','✗ жеке сөздер','✗'],['Көзге арналған пернетақта','—','✓','баяу: минутына 2–4 сөз','✗'],['VoiceBridge','✓ контекстік ЖИ','✓','✓ минутына 15–20 сөз','✓']],
+ s_theme:'Қараңғы тақырып', s_theme_d:'Кешке көзге жүктеме аз', s_size:'Ірі мәтін', s_size_d:'Көру қабілеті әлсіз адамдарға',
+ s_tremor:'Кездейсоқ басудан қорғау', s_tremor_d:'Тым жылдам қайталанған басуды елемейді (тремор, спастика)',
+ s_dwell:'Көзқарасты тоқтату уақыты', s_rate:'Дыбыстау жылдамдығы',
+ s_distort:'Демо: бұзылған сөйлеуді имитациялау', s_distort_d:'Қазылар алқасына көрсету үшін: танылған мәтінді бұрмалайды (дауысты дыбыстарды алып тастайды), дизартриядағыдай',
+ s_key:'Claude API кілті (міндетті емес)', s_key_d:'Тек өз сайтыңыздағы нұсқа үшін (GitHub Pages). Тек осы браузерде сақталады. Кілтсіз офлайн сөздік жұмыс істейді.',
+ sec:'с', tremor_block:'Тым жылдам басу — еленбеді'
+}};
+const t = (k, vars) => { let s = (T[S.lang][k] ?? T.ru[k] ?? k); if(vars) for(const v in vars) s = s.replace('{'+v+'}', vars[v]); return s; };
+
+/* ---------------- data ---------------- */
+const LOCS = [
+ {id:'home', e:'🏠', ru:'Дом', kk:'Үй'}, {id:'hospital', e:'🏥', ru:'Больница', kk:'Аурухана'},
+ {id:'shop', e:'🛒', ru:'Магазин', kk:'Дүкен'}, {id:'school', e:'🏫', ru:'Школа', kk:'Мектеп'}, {id:'transport', e:'🚌', ru:'Транспорт', kk:'Көлік'}];
+const TOPICS = [
+ {id:'health', e:'🩺', ru:'Самочувствие', kk:'Хал-жағдай'}, {id:'food', e:'🍲', ru:'Еда', kk:'Тамақ'},
+ {id:'requests', e:'🙏', ru:'Просьбы', kk:'Өтініштер'}, {id:'family', e:'👪', ru:'Семья', kk:'Отбасы'}, {id:'chat', e:'💬', ru:'Общение', kk:'Әңгіме'}];
+
+const DEFAULT_QUICK = [
+ {ru:'Да', kk:'Иә'}, {ru:'Нет', kk:'Жоқ'}, {ru:'Спасибо', kk:'Рақмет'}, {ru:'Мне нужна помощь', kk:'Маған көмек керек'},
+ {ru:'Я хочу пить', kk:'Су ішкім келеді'}, {ru:'Позовите врача', kk:'Дәрігерді шақырыңыз'}, {ru:'Мне больно', kk:'Ауырып тұр'}, {ru:'Я устал(а)', kk:'Шаршадым'}];
+let QUICK = store.get('quick', DEFAULT_QUICK);
+
+// t: person | act | drink | food | adj | body | feel
+const CARDS = [
+ {id:'mama',  cat:'people', e:'👩', t:'person', ru:'Мама', kk:'Ана', voc:{ru:'Мама',kk:'Анашым'}, f:false},
+ {id:'papa',  cat:'people', e:'👨', t:'person', ru:'Папа', kk:'Әке', voc:{ru:'Папа',kk:'Әкешім'}, f:false},
+ {id:'doctor',cat:'people', e:'🧑‍⚕️', t:'person', ru:'Врач', kk:'Дәрігер', voc:{ru:'Доктор',kk:'Дәрігер'}, f:true},
+ {id:'nurse', cat:'people', e:'👩‍⚕️', t:'person', ru:'Медсестра', kk:'Мейірбике', voc:{ru:'Сестра',kk:'Мейірбике'}, f:true},
+ {id:'brother',cat:'people',e:'🧑', t:'person', ru:'Брат', kk:'Аға', voc:{ru:'Брат',kk:'Ағатай'}, f:false},
+ {id:'drink', cat:'needs', e:'🥤', t:'act', ru:'Пить', kk:'Ішу'},
+ {id:'eat',   cat:'needs', e:'🍽️', t:'act', ru:'Есть', kk:'Жеу'},
+ {id:'sleep', cat:'needs', e:'😴', t:'act', ru:'Спать', kk:'Ұйықтау'},
+ {id:'help',  cat:'needs', e:'🤝', t:'act', ru:'Помочь', kk:'Көмек'},
+ {id:'toilet',cat:'needs', e:'🚻', t:'act', ru:'Туалет', kk:'Дәретхана'},
+ {id:'pain',  cat:'needs', e:'⚡', t:'act', ru:'Болит', kk:'Ауырады'},
+ {id:'water', cat:'food', e:'💧', t:'drink', ru:'Вода', kk:'Су', g:'f', gen:'воды'},
+ {id:'tea',   cat:'food', e:'🍵', t:'drink', ru:'Чай', kk:'Шай', g:'m', gen:'чая'},
+ {id:'juice', cat:'food', e:'🧃', t:'drink', ru:'Сок', kk:'Шырын', g:'m', gen:'сока'},
+ {id:'bread', cat:'food', e:'🍞', t:'food', ru:'Хлеб', kk:'Нан', acc:'хлеба'},
+ {id:'soup',  cat:'food', e:'🍲', t:'food', ru:'Суп', kk:'Сорпа', acc:'супа'},
+ {id:'apple', cat:'food', e:'🍎', t:'food', ru:'Яблоко', kk:'Алма', acc:'яблоко'},
+ {id:'cold',  cat:'food', e:'🧊', t:'adj', ru:'Холодный', kk:'Салқын', forms:{f:'холодной',m:'холодного'}},
+ {id:'hot',   cat:'food', e:'🔥', t:'adj', ru:'Горячий', kk:'Ыстық', forms:{f:'горячей',m:'горячего'}},
+ {id:'head',  cat:'body', e:'🤕', t:'body', ru:'Голова', kk:'Бас', poss:'басым'},
+ {id:'belly', cat:'body', e:'🫃', t:'body', ru:'Живот', kk:'Іш', poss:'ішім'},
+ {id:'throat',cat:'body', e:'🗣️', t:'body', ru:'Горло', kk:'Тамақ', poss:'тамағым'},
+ {id:'tooth', cat:'body', e:'🦷', t:'body', ru:'Зуб', kk:'Тіс', poss:'тісім'},
+ {id:'back',  cat:'body', e:'🧍', t:'body', ru:'Спина', kk:'Арқа', poss:'арқам'},
+ {id:'good',  cat:'feel', e:'😊', t:'feel', ru:'Хорошо', kk:'Жақсы'},
+ {id:'bad',   cat:'feel', e:'😣', t:'feel', ru:'Плохо', kk:'Жаман'},
+ {id:'sad',   cat:'feel', e:'😔', t:'feel', ru:'Грустно', kk:'Мұңды'},
+ {id:'thanks',cat:'feel', e:'🙏', t:'feel', ru:'Спасибо', kk:'Рақмет'},
+ {id:'love',  cat:'feel', e:'❤️', t:'feel', ru:'Люблю', kk:'Жақсы көремін'},
+ {id:'yes',   cat:'feel', e:'👍', t:'feel', ru:'Да', kk:'Иә'},
+ {id:'no',    cat:'feel', e:'👎', t:'feel', ru:'Нет', kk:'Жоқ'},
+];
+let CUSTOM = store.get('cards', []);
+const allCards = () => CARDS.concat(CUSTOM);
+const cardById = id => allCards().find(c => c.id === id);
+const CATS = ['people','needs','food','body','feel'];
+
+/* ---------------- theme/lang apply ---------------- */
+function applyPrefs(){
+  document.documentElement.dataset.theme = S.theme;
+  document.documentElement.dataset.size = S.size;
+  document.documentElement.lang = S.lang === 'kk' ? 'kk' : 'ru';
+  $$('[data-i]').forEach(el => { const v = t(el.dataset.i); if(typeof v === 'string') el.textContent = v; });
+  $$('.lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === S.lang));
+  $('#langM').textContent = S.lang === 'kk' ? 'РУС' : 'ҚАЗ';
+  $('#raw').placeholder = t('raw_ph');
+  $('#acLabel').placeholder = t('card_ph');
+  $('#sTheme').setAttribute('aria-checked', S.theme === 'dark');
+  $('#sSize').setAttribute('aria-checked', S.size === 'large');
+  $('#sTremor').setAttribute('aria-checked', S.tremor);
+  $('#sDistort').setAttribute('aria-checked', S.distort);
+  $('#sDwell').value = S.dwell; $('#dwellVal').textContent = (S.dwell/1000).toFixed(1) + ' ' + t('sec');
+  $('#sRate').value = S.rate; $('#rateVal').textContent = '×' + Number(S.rate).toFixed(2);
+  $('#sKey').value = S.key || '';
+  renderCtx(); renderQuick(); renderExamples(); renderCats(); renderGrid(); renderStrip(); renderCmp(); renderTherapy(); renderProgress(); renderHist(); updateBadge(); updateEyeNote();
+  setMicLabel();
+  if(!demoRunning) runHeroDemo();
+}
+
+/* ---------------- routing ---------------- */
+const VIEWS = ['home','voice','eyes','therapy','about'];
+function go(v){
+  if(!VIEWS.includes(v)) v = 'home';
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'v-'+v));
+  $$('.nav[data-go]').forEach(b => { if(b.dataset.go === v) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  if(location.hash.slice(1) !== v){ try{ history.replaceState(null,'','#'+v); }catch(e){ location.hash = v; } }
+  window.scrollTo(0,0);
+  current = v;
+  gazeActive();
+}
+let current = 'home';
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]'); if(g){ go(g.dataset.go); }
+});
+window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+
+/* ---------------- toast ---------------- */
+let toastT;
+function toast(msg){ const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
+
+/* ---------------- tremor protection ---------------- */
+let lastClick = 0;
+document.addEventListener('click', e => {
+  if(!S.tremor || !e.isTrusted) return;
+  if(e.target.closest('input,textarea,select,.modal,.calib')) return;
+  const now = performance.now();
+  if(now - lastClick < 350){ e.stopPropagation(); e.preventDefault(); toast(t('tremor_block')); return; }
+  lastClick = now;
+}, true);
+
+/* ---------------- Claude capabilities ---------------- */
+let CAP = {sample:null, dictation:null, tts:null};
+(async () => {
+  if(!(window.claude && typeof window.claude.use === 'function')) return;
+  try{ CAP.sample = await window.claude.use('sample'); }catch(e){}
+  try{ CAP.dictation = await window.claude.use('dictation'); }catch(e){}
+  try{ CAP.tts = await window.claude.use('tts'); }catch(e){}
+  updateBadge(); setMicLabel();
+})();
+const aiAvailable = () => !!(CAP.sample || S.key);
+function updateBadge(){
+  $('#aiBadge').classList.toggle('on', aiAvailable());
+  $('#aiBadgeText').textContent = aiAvailable() ? t('ai_on') : t('ai_off');
+}
+
+async function askClaude(prompt){
+  if(CAP.sample){
+    const r = await CAP.sample(prompt, {modelTier:'quick'});
+    return r.text;
+  }
+  if(S.key){
+    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers:{
+      'content-type':'application/json','x-api-key':S.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({model:'claude-haiku-5-5', max_tokens:400, messages:[{role:'user', content:prompt}]})});
+    if(!res.ok) throw new Error('api '+res.status);
+    const j = await res.json();
+    return j.content.map(c => c.text || '').join('');
+  }
+  throw new Error('no-ai');
+}
+function parseJSON(txt){
+  const m = txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('nojson');
+  return JSON.parse(m[0]);
+}
+const langName = () => S.lang === 'kk' ? 'казахском' : 'русском';
+const ctxName = (arr, id) => { const x = arr.find(a => a.id === id); return x ? x[S.lang] : ''; };
+
+/* ---------------- TTS ---------------- */
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  const want = S.lang === 'kk' ? ['kk','ru'] : ['ru'];
+  for(const w of want){ const v = vs.find(v => v.lang.toLowerCase().startsWith(w)); if(v) return v; }
+  return null;
+}
+async function speak(text, el){
+  if(!text) return;
+  el && el.classList.add('speaking');
+  const done = () => el && el.classList.remove('speaking');
+  if(CAP.tts){
+    try{ await CAP.tts.speak(text, {rate:Number(S.rate), language: S.lang === 'kk' ? 'kk' : 'ru'}); done(); return; }catch(e){ /* fall back */ }
+  }
+  if('speechSynthesis' in window){
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = S.lang === 'kk' ? 'kk-KZ' : 'ru-RU';
+    u.rate = Number(S.rate);
+    u.onend = done; u.onerror = done;
+    speechSynthesis.speak(u);
+  } else done();
+}
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+
+/* ---------------- speech recognition ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function makeListener({onPartial, onFinal, onEnd}){
+  // Returns {start, stop} or null
+  if(CAP.dictation){
+    const d = CAP.dictation; let un = [];
+    return {
+      start(){
+        un.forEach(f => { try{ f(); }catch(e){} }); un = [];
+        const a = d.onPartial(({text}) => onPartial(text)); const b = d.onFinal(({text}) => onFinal(text));
+        const c = d.onState(({state}) => { if(state === 'idle') onEnd(); });
+        [a,b,c].forEach(f => typeof f === 'function' && un.push(f));
+        return d.start().catch(err => { onEnd(err); });
+      },
+      stop(){ return d.stop().catch(()=>{}); }
+    };
+  }
+  if(SR){
+    let rec;
+    return {
+      start(){
+        rec = new SR(); rec.lang = S.lang === 'kk' ? 'kk-KZ' : 'ru-RU'; rec.interimResults = true; rec.continuous = true;
+        rec.onresult = ev => {
+          let interim = '';
+          for(let i = ev.resultIndex; i < ev.results.length; i++){
+            const r = ev.results[i]; if(r.isFinal) onFinal(r[0].transcript); else interim += r[0].transcript;
+          }
+          onPartial(interim);
+        };
+        rec.onerror = ev => onEnd(ev.error); rec.onend = () => onEnd();
+        try{ rec.start(); }catch(e){ onEnd(e); }
+      },
+      stop(){ try{ rec && rec.stop(); }catch(e){} }
+    };
+  }
+  return null;
+}
+
+/* ---------------- text helpers ---------------- */
+const VOW = /[аеёиоуыэюяәөұүіaeiou]/gi;
+const VOW1 = /[аеёиоуыэюяәөұүі]/i;
+const norm = s => s.toLowerCase().replace(/ё/g,'е').replace(/[.,!?…:;«»"()\-–—]+/g,' ').replace(/\s+/g,' ').trim();
+const skel = w => w.length <= 1 ? w : (w[0] + w.slice(1).replace(VOW,''));
+function distort(text){
+  return text.split(/\s+/).map(w => {
+    const clean = w.replace(/[.,!?]/g,'');
+    if(clean.length <= 2) return clean.toLowerCase();
+    return skel(clean.toLowerCase());
+  }).join(' ');
+}
+function lev(a, b){
+  const m = a.length, n = b.length; if(!m) return n; if(!n) return m;
+  let prev = Array.from({length:n+1}, (_, j) => j);
+  for(let i = 1; i <= m; i++){
+    const cur = [i];
+    for(let j = 1; j <= n; j++) cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+const cap1 = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+
+/* ---------------- offline voice interpreter ---------------- */
+const KNOWN = {
+ 'у мн блт грл': {ru:'У меня болит горло.'},
+ 'у мня блт грл': {ru:'У меня болит горло.'},
+ 'хчу вд дай пжлс': {ru:'Я хочу пить, дай мне, пожалуйста, воды.'},
+ 'хчу вд': {ru:'Я хочу пить, дай мне, пожалуйста, воды.'},
+ 'пзв врч': {ru:'Позовите, пожалуйста, врача.'},
+ 'бсм ауырп тр': {kk:'Басым ауырып тұр.'},
+ 'бсм арп тр': {kk:'Басым ауырып тұр.'},
+ 'су шкм клд': {kk:'Су ішкім келеді.'},
+ 'су ішкм клд': {kk:'Су ішкім келеді.'},
+ 'мғн кмк крк': {kk:'Маған көмек керек.'},
+ 'дргрд шқрңз': {kk:'Дәрігерді шақырыңызшы.'},
+};
+const LEX = {
+ ru:{ base:'я мне меня у дай дайте пожалуйста хочу пить есть кушать спать воды вода воду чай сок болит горло голова живот зуб спина помоги помогите позови позовите маму папу врача медсестру холодно жарко туалет спасибо люблю тебя не могу где мой телефон открой закрой окно свет выключи включи телевизор устал устала плохо хорошо больно лекарство таблетку домой хлеб суп кашу сколько стоит купить остановка выйти автобус учитель урок книга ручка',
+      topic:{health:'болит горло голова живот зуб спина больно плохо лекарство таблетку врача медсестру', food:'хочу пить есть кушать воды вода чай сок хлеб суп кашу', requests:'дай дайте помоги помогите позови позовите открой закрой выключи включи', family:'маму папу люблю тебя спасибо', chat:'спасибо хорошо не могу где'},
+      loc:{hospital:'врача медсестру лекарство таблетку болит', shop:'сколько стоит купить хлеб', transport:'остановка выйти автобус', school:'учитель урок книга ручка', home:'маму папу спать телевизор окно свет'}},
+ kk:{ base:'мен маған менің су ішкім жегім келеді ұйықтағым басым ішім тамағым тісім арқам ауырып тұр көмек керек көмектесіңізші беріңізші берші дәрігерді шақырыңызшы анашым әкешім рақмет жақсы жаман шаршадым суық ыстық дәретхана дәрі нан сорпа шай терезені ашыңызшы жарықты өшіріңізші үйге қанша тұрады аялдама түсемін мұғалім сабақ',
+      topic:{health:'басым ішім тамағым тісім ауырып тұр дәрі дәрігерді', food:'су ішкім жегім нан сорпа шай келеді', requests:'беріңізші көмектесіңізші шақырыңызшы ашыңызшы өшіріңізші', family:'анашым әкешім рақмет', chat:'жақсы рақмет'},
+      loc:{hospital:'дәрігерді дәрі ауырып', shop:'қанша тұрады нан', transport:'аялдама түсемін', school:'мұғалім сабақ', home:'анашым әкешім ұйықтағым'}}
+};
+function offlineVoice(raw){
+  const key = norm(raw);
+  if(KNOWN[key] && KNOWN[key][S.lang]) return {text:KNOWN[key][S.lang], confidence:88, alternatives:[]};
+  const L = LEX[S.lang];
+  const words = [...new Set(L.base.split(' '))];
+  const boost = new Set(((L.topic[S.topic]||'') + ' ' + (L.loc[S.loc]||'')).split(' '));
+  const out = []; let hits = 0, total = 0;
+  for(const tok of key.split(' ')){
+    if(!tok) continue; total++;
+    if(words.includes(tok)){ out.push(tok); hits++; continue; }
+    const ts = skel(tok);
+    let best = null, bestScore = -1;
+    for(const w of words){
+      const ws = skel(w);
+      let sc = -1;
+      if(ws === ts) sc = 10;
+      else if(ws.startsWith(ts) && ts.length >= 2) sc = 7 - (ws.length - ts.length) * .5;
+      else { const d = lev(ts, ws); if(d <= 1 && ts.length >= 3) sc = 5 - d; }
+      if(sc > 0 && boost.has(w)) sc += 3;
+      if(sc > bestScore){ bestScore = sc; best = w; }
+    }
+    if(best && bestScore > 0){ out.push(best); hits++; } else out.push(tok);
+  }
+  const text = cap1(out.join(' ')) + '.';
+  return {text, confidence: Math.round(40 + 45 * (hits / Math.max(1,total))), alternatives:[]};
+}
+
+/* ---------------- offline card composer ---------------- */
+function composeOffline(ids, lang){
+  const cs = ids.map(cardById).filter(Boolean);
+  if(!cs.length) return '';
+  const P = cs.find(c => c.t === 'person');
+  const has = id => ids.includes(id);
+  const drink = cs.find(c => c.t === 'drink'), food = cs.find(c => c.t === 'food'), adj = cs.find(c => c.t === 'adj'), body = cs.find(c => c.t === 'body');
+  const inf = P ? !P.f : false; // informal?
+  const voc = P ? P.voc[lang] + ', ' : '';
+  const R = (a,b) => inf ? a : b;
+  let s = '';
+  if(lang === 'ru'){
+    if(has('pain') || body){
+      const b = body ? body.ru.toLowerCase() : null;
+      if(P && P.id === 'doctor') s = b ? `Вызовите, пожалуйста, врача, у меня болит ${b}.` : 'Вызовите, пожалуйста, врача, мне плохо.';
+      else s = b ? `${voc}у меня болит ${b}. ${R('Помоги','Помогите')}, пожалуйста.` : `${voc}мне больно. ${R('Помоги','Помогите')}, пожалуйста.`;
+    } else if(has('drink') || drink){
+      const d = drink || cardById('water');
+      const a = adj ? adj.forms[d.g] + ' ' : '';
+      s = P ? `${voc}пожалуйста, ${R('налей','налейте')} мне ${a}${d.gen}.` : `Я хочу пить. Налейте мне, пожалуйста, ${a}${d.gen}.`;
+    } else if(has('eat') || food){
+      s = food ? `${voc}я хочу есть. ${R('Дай','Дайте')} мне, пожалуйста, ${food.acc}.` : `${voc}я хочу есть. ${R('Принеси','Принесите')}, пожалуйста, что-нибудь поесть.`;
+    } else if(has('toilet')) s = `${voc}мне нужно в туалет. ${R('Помоги','Помогите')}, пожалуйста.`;
+    else if(has('sleep')) s = `${voc}я устал(а) и хочу спать. ${R('Выключи','Выключите')}, пожалуйста, свет.`;
+    else if(has('help')) s = `${voc}${R('помоги','помогите')} мне, пожалуйста.`;
+    else if(adj && adj.id === 'cold') s = `${voc}мне холодно. ${R('Дай','Дайте')}, пожалуйста, одеяло.`;
+    else if(adj && adj.id === 'hot') s = `${voc}мне жарко. ${R('Открой','Откройте')}, пожалуйста, окно.`;
+    else if(has('love')) s = `${voc}я ${R('тебя','вас')} очень люблю.`;
+    else if(has('thanks')) s = `${voc}спасибо ${R('тебе','вам')} большое!`;
+    else if(has('good')) s = `${voc}мне хорошо, не ${R('переживай','переживайте')}.`;
+    else if(has('bad')) s = `${voc}мне плохо. ${R('Побудь','Побудьте')}, пожалуйста, со мной.`;
+    else if(has('sad')) s = `${voc}мне грустно. ${R('Посиди','Посидите')}, пожалуйста, со мной.`;
+    else if(has('yes')) s = `${voc}да.`;
+    else if(has('no')) s = `${voc}нет, спасибо.`;
+    else if(P && cs.length === 1) s = `${voc}${R('подойди','подойдите')}, пожалуйста, ко мне.`;
+    else s = cs.map(c => c.ru).join(' ') + '.';
+  } else {
+    if(has('pain') || body){
+      const b = body ? body.poss : null;
+      if(P && P.id === 'doctor') s = b ? `Дәрігерді шақырыңызшы, ${b} ауырып тұр.` : 'Дәрігерді шақырыңызшы, өзімді жаман сезініп тұрмын.';
+      else s = b ? `${voc}${b} ауырып тұр. ${R('Көмектесші','Көмектесіңізші')}.` : `${voc}ауырып тұр. ${R('Көмектесші','Көмектесіңізші')}.`;
+    } else if(has('drink') || drink){
+      const d = drink || cardById('water');
+      const a = adj ? adj.kk.toLowerCase() + ' ' : '';
+      s = P ? `${voc}маған ${a}${d.kk.toLowerCase()} ${R('құйып берші','құйып беріңізші')}.` : `Шөлдедім. Маған ${a}${d.kk.toLowerCase()} құйып беріңізші.`;
+    } else if(has('eat') || food){
+      s = food ? `${voc}қарным ашты. Маған ${food.kk.toLowerCase()} ${R('берші','беріңізші')}.` : `${voc}қарным ашты. Маған тамақ ${R('әкеліп берші','әкеліп беріңізші')}.`;
+    } else if(has('toilet')) s = `${voc}дәретханаға барғым келеді. ${R('Көмектесші','Көмектесіңізші')}.`;
+    else if(has('sleep')) s = `${voc}шаршадым, ұйықтағым келеді. Жарықты ${R('өшірші','өшіріңізші')}.`;
+    else if(has('help')) s = `${voc}маған ${R('көмектесші','көмектесіңізші')}.`;
+    else if(adj && adj.id === 'cold') s = `${voc}тоңып тұрмын. Маған көрпе ${R('берші','беріңізші')}.`;
+    else if(adj && adj.id === 'hot') s = `${voc}ыстық болып тұр. Терезені ${R('ашшы','ашыңызшы')}.`;
+    else if(has('love')) s = `${voc}мен ${R('сені','сізді')} қатты жақсы көремін.`;
+    else if(has('thanks')) s = `${voc}${R('саған','сізге')} көп рақмет!`;
+    else if(has('good')) s = `${voc}жағдайым жақсы, ${R('уайымдама','уайымдамаңыз')}.`;
+    else if(has('bad')) s = `${voc}өзімді жаман сезініп тұрмын. Қасымда ${R('болшы','болыңызшы')}.`;
+    else if(has('sad')) s = `${voc}көңілім жоқ. Қасымда ${R('отыршы','отырыңызшы')}.`;
+    else if(has('yes')) s = `${voc}иә.`;
+    else if(has('no')) s = `${voc}жоқ, рақмет.`;
+    else if(P && cs.length === 1) s = `${voc}маған ${R('келші','келіңізші')}.`;
+    else s = cs.map(c => c.kk).join(' ') + '.';
+  }
+  return cap1(s);
+}
+
+/* ---------------- HERO demo ---------------- */
+const HERO = {
+ ru:[{raw:'у мн блт грл', clean:'У меня болит горло.', ctx:'🩺 Самочувствие'}, {raw:'хчу вд.. дай пжлс', clean:'Я хочу пить, дай мне, пожалуйста, воды.', ctx:'🏠 Дом · обед'}, {raw:'[Врач] [Болит] [Голова]', clean:'Вызовите, пожалуйста, врача, у меня болит голова.', ctx:'👁 Взгляд'}],
+ kk:[{raw:'бсм ауырп тр', clean:'Басым ауырып тұр.', ctx:'🩺 Хал-жағдай'}, {raw:'су шкм клд', clean:'Су ішкім келеді.', ctx:'🏠 Үй'}, {raw:'[Ана] [Ішу] [Салқын]', clean:'Анашым, маған салқын су құйып берші.', ctx:'👁 Көзқарас'}]
+};
+let demoRunning = false, demoIdx = 0, demoTimer;
+function runHeroDemo(){
+  demoRunning = true; clearTimeout(demoTimer);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const list = HERO[S.lang]; const d = list[demoIdx % list.length];
+  const rawEl = $('#demoRaw'), cleanEl = $('#demoClean'), arc = $('#arcFill');
+  $('#demoCtx').textContent = d.ctx;
+  rawEl.textContent = ''; cleanEl.innerHTML = ''; arc.style.transition = 'none'; arc.style.strokeDashoffset = 520;
+  if(reduce){ rawEl.textContent = d.raw; cleanEl.textContent = d.clean; arc.style.strokeDashoffset = 0; demoTimer = setTimeout(() => { demoIdx++; runHeroDemo(); }, 6000); return; }
+  let i = 0;
+  const typeRaw = () => {
+    if(i <= d.raw.length){ rawEl.textContent = d.raw.slice(0, i++); demoTimer = setTimeout(typeRaw, 70); }
+    else { void arc.getBBox(); arc.style.transition = 'stroke-dashoffset 1.1s ease'; arc.style.strokeDashoffset = 0; demoTimer = setTimeout(typeClean, 1150); }
+  };
+  let j = 0;
+  const typeClean = () => {
+    if(j <= d.clean.length){
+      // highlight restored vowels in gold
+      cleanEl.innerHTML = [...d.clean.slice(0, j)].map(ch => VOW1.test(ch) ? `<span class="v">${ch}</span>` : ch.replace(/</g,'&lt;')).join('');
+      j++; demoTimer = setTimeout(typeClean, 38);
+    } else { demoTimer = setTimeout(() => { cleanEl.innerHTML = d.clean; demoIdx++; runHeroDemo(); }, 3200); }
+  };
+  demoTimer = setTimeout(typeRaw, 400);
+}
+
+/* ---------------- quick phrases ---------------- */
+function renderQuick(){
+  const box = $('#quick'); box.innerHTML = '';
+  QUICK.forEach((q, i) => {
+    const b = document.createElement('button'); b.className = 'qp';
+    const txt = q[S.lang] || q.ru || q.kk;
+    b.innerHTML = `<span>🔊</span><span></span><span class="del" role="button" aria-label="×">✕</span>`;
+    b.children[1].textContent = txt;
+    b.addEventListener('click', e => {
+      if(e.target.closest('.del')){ QUICK.splice(i,1); store.set('quick', QUICK); renderQuick(); return; }
+      speak(txt, b);
+    });
+    box.appendChild(b);
+  });
+}
+$('#editQuick').addEventListener('click', () => {
+  const ed = $('#quick').classList.toggle('editing');
+  $('#editQuick').textContent = ed ? t('done') : t('edit');
+});
+$('#addQp').addEventListener('click', () => {
+  const v = $('#newQp').value.trim(); if(!v) return;
+  QUICK.push({ru:v, kk:v}); store.set('quick', QUICK); $('#newQp').value = ''; renderQuick();
+});
+
+/* ---------------- VOICE screen ---------------- */
+function renderCtx(){
+  const mk = (arr, key, box) => {
+    box.innerHTML = '';
+    arr.forEach(x => {
+      const b = document.createElement('button'); b.className = 'chip'; b.textContent = `${x.e} ${x[S.lang]}`;
+      b.setAttribute('aria-pressed', S[key] === x.id);
+      b.onclick = () => { S[key] = x.id; save(); renderCtx(); };
+      box.appendChild(b);
+    });
+  };
+  mk(LOCS, 'loc', $('#locs')); mk(TOPICS, 'topic', $('#topics'));
+}
+const EXAMPLES = {ru:['у мн блт грл','хчу вд.. дай пжлс','пзв врч'], kk:['бсм ауырп тр','су шкм клд','мғн кмк крк']};
+function renderExamples(){
+  const box = $('#exBtns'); box.innerHTML = '';
+  EXAMPLES[S.lang].forEach(x => { const b = document.createElement('button'); b.textContent = x; b.onclick = () => { $('#raw').value = x; interpret(); }; box.appendChild(b); });
+}
+// wave bars
+const wave = $('#wave'); for(let i = 0; i < 14; i++) wave.appendChild(document.createElement('span'));
+let waveTimer;
+function animateWave(on){
+  clearInterval(waveTimer);
+  const bars = [...wave.children];
+  if(!on){ bars.forEach(b => b.style.height = '8px'); return; }
+  waveTimer = setInterval(() => bars.forEach((b, i) => b.style.height = (8 + Math.abs(Math.sin(Date.now()/180 + i*.7)) * 34 * (0.5 + Math.random()*.5)) + 'px'), 90);
+}
+let listening = false, listener = null, finalText = '';
+function setMicLabel(){
+  const canMic = !!(CAP.dictation || SR);
+  $('#micLabel').textContent = listening ? t('mic_on') : (canMic ? t('mic_idle') : t('mic_none'));
+}
+$('#mic').addEventListener('click', () => {
+  if(listening){ listener && listener.stop(); return; }
+  listener = makeListener({
+    onPartial: txt => { $('#raw').value = (finalText + ' ' + txt).trim(); },
+    onFinal: txt => { finalText = (finalText + ' ' + txt).trim(); $('#raw').value = finalText; },
+    onEnd: () => {
+      if(!listening) return;
+      listening = false; $('#mic').classList.remove('listening'); animateWave(false); setMicLabel();
+      let v = $('#raw').value.trim();
+      if(v){ if(S.distort){ v = distort(v); $('#raw').value = v; } interpret(); }
+    }
+  });
+  if(!listener){ toast(t('mic_none')); $('#raw').focus(); return; }
+  finalText = ''; $('#raw').value = '';
+  listening = true; $('#mic').classList.add('listening'); animateWave(true); setMicLabel();
+  listener.start();
+});
+$('#clearRaw').onclick = () => { $('#raw').value = ''; $('#result').classList.remove('show'); };
+$('#interpret').onclick = () => interpret();
+$('#raw').addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); interpret(); } });
+
+let HIST = store.get('hist', []);
+function renderHist(){
+  const ul = $('#hist'); ul.innerHTML = '';
+  HIST.slice(0, 6).forEach(h => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span></span><span class="r"></span>';
+    li.children[0].textContent = h.out; li.children[1].textContent = h.raw;
+    li.style.cursor = 'pointer'; li.onclick = () => speak(h.out);
+    ul.appendChild(li);
+  });
+  $('.history').style.display = HIST.length ? '' : 'none';
+}
+
+async function interpret(){
+  const raw = $('#raw').value.trim();
+  if(!raw){ toast(t('need_text')); return; }
+  const res = $('#result'); res.classList.add('show');
+  $('#out').innerHTML = `<span class="thinking"><i></i><i></i><i></i></span> <span style="font-size:18px;font-family:var(--body);font-weight:500">${t('thinking')}</span>`;
+  $('#alts').innerHTML = ''; $('#confBar').style.width = '0'; $('#confTxt').textContent = ''; $('#srcTxt').textContent = '';
+  let r, src = 'off';
+  if(aiAvailable()){
+    const prompt = `Ты — интеллектуальное ядро системы VoiceBridge, помогающей людям с дизартрией и афазией.
+Обычное распознавание речи выдало искажённый текст (пропущены гласные, слоги, слова склеены или оборваны).
+Восстанови, что человек на самом деле хотел сказать, используя контекст.
+
+Сырой текст: «${raw}»
+Где находится человек: ${ctxName(LOCS, S.loc)}
+Тема разговора: ${ctxName(TOPICS, S.topic)}
+
+Правила:
+- Ответ на ${langName()} языке, от первого лица, естественно и вежливо, коротко (одно-два предложения).
+- Не добавляй фактов, которых нет в исходном смысле. Если смысл неочевиден — выбери самый вероятный с учётом контекста.
+- Дай ещё 2 альтернативных варианта толкования.
+Верни ТОЛЬКО JSON без пояснений: {"text":"...","confidence":0-100,"alternatives":["...","..."]}`;
+    try{ r = parseJSON(await askClaude(prompt)); src = 'ai'; }catch(e){ r = null; }
+  }
+  if(!r){ await new Promise(z => setTimeout(z, 500)); r = offlineVoice(raw); }
+  showResult(r, src, raw);
+}
+function showResult(r, src, raw){
+  const out = $('#out'); out.textContent = r.text;
+  const conf = Math.max(0, Math.min(100, Number(r.confidence) || 70));
+  $('#confBar').style.width = conf + '%'; $('#confTxt').textContent = conf + '%';
+  $('#srcTxt').textContent = src === 'ai' ? t('src_ai') : t('src_off');
+  const alts = $('#alts'); alts.innerHTML = '';
+  (r.alternatives || []).filter(Boolean).slice(0,3).forEach(a => {
+    const b = document.createElement('button'); b.textContent = a;
+    b.onclick = () => { const cur = out.textContent; out.textContent = a; b.textContent = cur; speak(a); };
+    alts.appendChild(b);
+  });
+  HIST.unshift({raw, out:r.text}); HIST = HIST.slice(0, 20); store.set('hist', HIST); renderHist();
+  speak(r.text);
+}
+$('#speakOut').onclick = () => speak($('#out').textContent, $('#speakOut'));
+$('#copyOut').onclick = async () => { try{ await navigator.clipboard.writeText($('#out').textContent); toast(t('copied')); }catch(e){} };
+
+/* ---------------- EYES screen ---------------- */
+let PICK = [];
+let composeTimer, composeSeq = 0;
+function renderCats(){
+  const box = $('#cats'); box.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button'); b.className = 'cat'; b.dataset.dwell = '';
+    b.textContent = t('cat_' + c); b.setAttribute('aria-pressed', S.cat === c);
+    b.onclick = () => { S.cat = c; save(); renderCats(); renderGrid(); };
+    box.appendChild(b);
+  });
+}
+function renderGrid(){
+  const g = $('#grid'); g.innerHTML = '';
+  allCards().filter(c => c.cat === S.cat).forEach(c => {
+    const b = document.createElement('button'); b.className = 'card'; b.dataset.dwell = '';
+    b.innerHTML = `<span class="e"></span><span></span>`;
+    b.children[0].textContent = c.e; b.children[1].textContent = c[S.lang] || c.ru;
+    b.onclick = () => { b.classList.remove('pick'); void b.offsetWidth; b.classList.add('pick'); addPick(c.id); };
+    g.appendChild(b);
+  });
+  const a = document.createElement('button'); a.className = 'card add';
+  a.innerHTML = `<span class="e">＋</span><span>${t('add_card')}</span>`;
+  a.onclick = () => { $('#addForm').classList.add('show'); $('#acLabel').focus(); };
+  g.appendChild(a);
+}
+function addPick(id){ if(PICK.length >= 6) return; PICK.push(id); renderStrip(); scheduleCompose(); }
+function renderStrip(){
+  const box = $('#stripCards'); box.innerHTML = '';
+  if(!PICK.length){ box.innerHTML = `<span class="strip-empty">${t('strip_empty')}</span>`; $('#stripOut').textContent = ''; $('#stripAlts').innerHTML = ''; return; }
+  PICK.forEach((id, i) => {
+    const c = cardById(id); if(!c) return;
+    if(i) box.insertAdjacentHTML('beforeend', '<span class="plus">+</span>');
+    const s = document.createElement('span'); s.className = 'sc'; s.innerHTML = '<span class="e"></span><span></span>';
+    s.children[0].textContent = c.e; s.children[1].textContent = c[S.lang] || c.ru; box.appendChild(s);
+  });
+}
+function scheduleCompose(){
+  clearTimeout(composeTimer);
+  if(!PICK.length) return;
+  $('#stripOut').innerHTML = `<span class="thinking"><i></i><i></i><i></i></span> <span style="font-size:16px;font-family:var(--body);font-weight:500;color:var(--muted)">${t('composing')}</span>`;
+  $('#stripAlts').innerHTML = '';
+  composeTimer = setTimeout(compose, 650);
+}
+async function compose(){
+  const seq = ++composeSeq; const ids = PICK.slice();
+  let text = null, alts = [];
+  if(aiAvailable()){
+    const labels = ids.map(id => { const c = cardById(id); return `[${c[S.lang] || c.ru}]`; }).join(' → ');
+    const prompt = `Ты — смысловой конструктор системы VoiceBridge для полностью парализованного человека, который выбирает карточки-пиктограммы взглядом.
+Он выбрал по порядку: ${labels}
+Где находится: ${ctxName(LOCS, S.loc)}.
+Составь одну естественную, вежливую, грамматически правильную фразу от его лица на ${langName()} языке, которую он хотел бы сказать. Если среди карточек есть человек — обратись к нему. Коротко, 1–2 предложения, без лишних фактов.
+Пример: [Мама] → [Пить] → [Холодный] = «Мама, пожалуйста, налей мне холодной воды».
+Пример: [Врач] → [Болит] → [Голова] = «Вызовите, пожалуйста, врача, у меня болит голова».
+Верни ТОЛЬКО JSON: {"text":"...","alternatives":["...","..."]}`;
+    try{ const r = parseJSON(await askClaude(prompt)); text = r.text; alts = r.alternatives || []; }catch(e){}
+  }
+  if(!text) text = composeOffline(ids, S.lang);
+  if(seq !== composeSeq) return;
+  $('#stripOut').textContent = text;
+  const box = $('#stripAlts'); box.innerHTML = '';
+  alts.filter(Boolean).slice(0,2).forEach(a => {
+    const b = document.createElement('button'); b.textContent = a; b.dataset.dwell = ''; b.style.position = 'relative'; b.style.overflow = 'hidden';
+    b.onclick = () => { const cur = $('#stripOut').textContent; $('#stripOut').textContent = a; b.textContent = cur; };
+    box.appendChild(b);
+  });
+}
+$('#eSpeak').onclick = () => { const txt = $('#stripOut').textContent; if(txt && PICK.length) speak(txt, $('#eSpeak')); };
+$('#eBack').onclick = () => { PICK.pop(); renderStrip(); scheduleCompose(); };
+$('#eClear').onclick = () => { PICK = []; clearTimeout(composeTimer); composeSeq++; renderStrip(); };
+$('#acCancel').onclick = () => $('#addForm').classList.remove('show');
+$('#acSave').onclick = () => {
+  const label = $('#acLabel').value.trim(); if(!label) return;
+  const c = {id:'c' + Date.now(), cat:S.cat, e:$('#acEmoji').value.trim() || '⭐', t:'custom', ru:label, kk:label};
+  CUSTOM.push(c); store.set('cards', CUSTOM); $('#acLabel').value = ''; $('#addForm').classList.remove('show'); renderGrid();
+};
+
+/* ---- gaze / dwell engine ---- */
+// Фильтры: медиана (убирает выбросы) + One Euro (гасит дрожание, но не тормозит быстрые переводы взгляда)
+class LowPass{ constructor(){ this.y = null; } f(x, a){ this.y = this.y === null ? x : a * x + (1 - a) * this.y; return this.y; } }
+class OneEuro{
+  constructor(minCutoff, beta, dCutoff = 1){ this.minCutoff = minCutoff; this.beta = beta; this.dCutoff = dCutoff; this.reset(); }
+  reset(){ this.x = new LowPass(); this.dx = new LowPass(); this.t = null; }
+  alpha(c, dt){ const tau = 1 / (2 * Math.PI * c); return 1 / (1 + tau / dt); }
+  filter(v, t){
+    if(this.t === null){ this.t = t; this.dx.f(0, 1); return this.x.f(v, 1); }
+    const dt = Math.max(0.001, (t - this.t) / 1000); this.t = t;
+    const dv = (v - this.x.y) / dt;
+    const edv = this.dx.f(dv, this.alpha(this.dCutoff, dt));
+    return this.x.f(v, this.alpha(this.minCutoff + this.beta * Math.abs(edv), dt));
+  }
+}
+const GF = {bx:[], by:[], fx:new OneEuro(0.35, 0.0012), fy:new OneEuro(0.35, 0.0012), lastSeen:0};
+const median = arr => { const a = arr.slice().sort((p, q) => p - q); return a[a.length >> 1]; };
+function feedGaze(x, y){
+  const now = performance.now();
+  GF.bx.push(x); GF.by.push(y); if(GF.bx.length > 9){ GF.bx.shift(); GF.by.shift(); }
+  const mx = Math.min(innerWidth, Math.max(0, median(GF.bx))), my = Math.min(innerHeight, Math.max(0, median(GF.by)));
+  gx = GF.fx.filter(mx, now); gy = GF.fy.filter(my, now); GF.lastSeen = now;
+  if(accTest) accTest.samples.push([gx, gy, now]);
+}
+function resetGaze(){ GF.bx = []; GF.by = []; GF.fx.reset(); GF.fy.reset(); }
+
+let gx = -1, gy = -1, dwellEl = null, acc = 0, away = 0, lastT = 0, refractory = 0, accTest = null;
+const dot = $('#gazeDot');
+function gazeActive(){
+  const on = current === 'eyes' && (S.mode === 'mouse' || S.mode === 'camera');
+  document.body.classList.toggle('gaze-on', current === 'eyes' && S.mode === 'camera');
+  dot.style.display = on && S.mode === 'camera' && gx >= 0 ? 'block' : 'none';
+  return on;
+}
+document.addEventListener('mousemove', e => { if(S.mode === 'mouse'){ gx = e.clientX; gy = e.clientY; } });
+// «Магнит»: берём карточку под точкой, а если точка попала в промежуток — ближайшую в радиусе 120px
+function targetAt(x, y){
+  let best = null, bestD = S.mode === 'camera' ? 120 : 0;
+  for(const el of $$('#v-eyes [data-dwell]')){
+    const r = el.getBoundingClientRect(); if(!r.width) continue;
+    const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
+    const d = Math.hypot(dx, dy);
+    if(d === 0) return el;
+    if(d < bestD){ bestD = d; best = el; }
+  }
+  return best;
+}
+function clearDwell(){ if(dwellEl){ dwellEl.classList.remove('dwelling'); dwellEl.style.setProperty('--dw', 0); } dwellEl = null; acc = 0; away = 0; }
+function dwellLoop(now){
+  const dt = lastT ? Math.min(100, now - lastT) : 16; lastT = now;
+  const faceOk = S.mode !== 'camera' || now - GF.lastSeen < 600;
+  if(gazeActive() && gx >= 0 && !$('#calib').classList.contains('show')){
+    if(S.mode === 'camera'){ dot.style.transform = `translate(${gx}px,${gy}px)`; dot.style.opacity = faceOk ? 1 : .25; }
+    if(!faceOk){ requestAnimationFrame(dwellLoop); return; } // лицо потеряно — выбор на паузе, прогресс не сбрасываем
+    const el = targetAt(gx, gy);
+    const grace = S.mode === 'camera' ? 300 : 60;
+    if(el === dwellEl){ away = 0; if(el && now > refractory) acc += dt; }
+    else {
+      away += dt;
+      if(away > grace){ clearDwell(); dwellEl = el; if(el) el.classList.add('dwelling'); }
+    }
+    if(dwellEl){
+      const p = Math.min(1, acc / S.dwell);
+      dwellEl.style.setProperty('--dw', p);
+      if(p >= 1){ const target = dwellEl; acc = 0; refractory = now + 900; target.style.setProperty('--dw', 0); target.click(); }
+    }
+  } else if(dwellEl) clearDwell();
+  requestAnimationFrame(dwellLoop);
+}
+requestAnimationFrame(dwellLoop);
+
+function updateEyeNote(){
+  $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+  $('#recal').style.display = S.mode === 'camera' ? '' : 'none';
+  $('#eyeNote').textContent = t('note_' + S.mode, {s:(S.dwell/1000).toFixed(1)});
+}
+$$('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+async function setMode(m){
+  if(S.mode === 'camera' && m !== 'camera') stopCamera();
+  S.mode = m; save(); updateEyeNote();
+  if(m === 'mouse'){ gx = -1; gy = -1; }
+  if(m === 'camera') startCamera();
+  gazeActive();
+}
+const WG_BASE = 'https://cdn.jsdelivr.net/npm/webgazer@3.5.3/dist';
+const WG_URL = WG_BASE + '/webgazer.js';
+function loadScript(src){ return new Promise((ok, no) => { if(window.webgazer) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('script')); document.head.appendChild(s); }); }
+let camOn = false;
+function camError(kind){
+  const msg = t('cam_err_' + kind);
+  toast(msg); $('#eyeNote').textContent = msg;
+  S.mode = 'mouse'; save(); updateEyeNote(); $('#eyeNote').textContent = msg;
+}
+async function startCamera(){
+  toast(t('cam_loading'));
+  if(!window.isSecureContext) return camError('https');
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return camError('browser');
+  try{
+    const probe = await navigator.mediaDevices.getUserMedia({video:true});
+    probe.getTracks().forEach(tr => tr.stop());
+  }catch(e){
+    const n = e && e.name;
+    if(n === 'NotAllowedError' || n === 'SecurityError') return camError('denied');
+    if(n === 'NotFoundError' || n === 'OverconstrainedError') return camError('nocam');
+    if(n === 'NotReadableError') return camError('busy');
+    return camError('denied');
+  }
+  try{ await loadScript(WG_URL); }catch(e){ return camError('load'); }
+  try{
+    // ВАЖНО: модель лица грузим с CDN, а не из папки сайта (иначе 404 на GitHub Pages)
+    webgazer.params.faceMeshSolutionPath = WG_BASE + '/mediapipe/face_mesh';
+    webgazer.params.showVideoPreview = true;
+    webgazer.params.camConstraints = {video:{width:{ideal:1280}, height:{ideal:720}, facingMode:'user'}};
+    webgazer.setRegression('ridge').saveDataAcrossSessions(false).setGazeListener(d => { if(d) feedGaze(d.x, d.y); });
+    await webgazer.begin(() => camError('denied'));
+    webgazer.showPredictionPoints(false).applyKalmanFilter(true).showFaceOverlay(false).showFaceFeedbackBox(true);
+    try{ webgazer.setVideoViewerSize(200, 150); }catch(e){}
+    camOn = true; calibrate();
+  }catch(e){
+    console.error('[VoiceBridge] webgazer', e);
+    camError('load');
+  }
+}
+function stopCamera(){ if(camOn && window.webgazer){ try{ webgazer.end(); }catch(e){} } camOn = false; gx = gy = -1; resetGaze(); dot.style.display = 'none'; document.body.classList.remove('gaze-on'); }
+$('#recal').onclick = () => calibrate();
+function calibrate(){
+  const c = $('#calib'); c.classList.add('show');
+  c.querySelectorAll('.pt').forEach(p => p.remove());
+  const msg = $('#calibMsg'); msg.style.display = '';
+  try{ webgazer.clearData(); }catch(e){}
+  try{ webgazer.addMouseEventListeners(); }catch(e){}
+  resetGaze();
+  // точки по одной: так пользователь смотрит точно в нужное место
+  const pos = [[50,50],[6,8],[50,8],[94,8],[94,50],[94,92],[50,92],[6,92],[6,50],[28,30],[72,30],[72,70],[28,70]];
+  let i = 0;
+  const showPoint = () => {
+    c.querySelectorAll('.pt').forEach(p => p.remove());
+    if(i >= pos.length) return accuracyTest();
+    const [x, y] = pos[i];
+    msg.innerHTML = `<h2>${t('calib_t')}</h2><p class="lead" style="margin:10px auto 0">${t('calib_d')}</p><p class="muted" style="margin-top:12px;font-weight:600">${t('calib_step', {n:i + 1, m:pos.length})}</p>`;
+    msg.style.top = y > 35 && y < 65 ? '22%' : '50%';
+    const p = document.createElement('button'); p.className = 'pt'; p.style.left = x + '%'; p.style.top = y + '%';
+    let n = 0; p.textContent = '5';
+    p.onclick = () => { n++; p.textContent = String(5 - n); p.style.transform = `scale(${1 - n * 0.12})`; if(n >= 5){ i++; setTimeout(showPoint, 250); } };
+    c.appendChild(p);
+  };
+  showPoint();
+}
+function accuracyTest(){
+  const c = $('#calib'), msg = $('#calibMsg');
+  try{ webgazer.removeMouseEventListeners(); }catch(e){} // дальше модель НЕ дообучается на движениях мыши — иначе «уплывает»
+  msg.style.top = '30%';
+  msg.innerHTML = `<h2>${t('acc_t')}</h2><p class="lead" style="margin:10px auto 0">${t('acc_d')}</p>`;
+  const p = document.createElement('div'); p.className = 'pt done'; p.style.left = '50%'; p.style.top = '62%'; p.style.width = p.style.height = '30px';
+  c.appendChild(p);
+  const cx = innerWidth * 0.5, cy = innerHeight * 0.62;
+  accTest = {samples:[], start:performance.now()};
+  setTimeout(() => {
+    const ss = accTest.samples.filter(s => s[2] - accTest.start > 800); accTest = null; p.remove();
+    const err = ss.length ? Math.round(ss.reduce((a, s) => a + Math.hypot(s[0] - cx, s[1] - cy), 0) / ss.length) : 999;
+    const lvl = ss.length < 5 ? 'noface' : err < 130 ? 'good' : err < 230 ? 'mid' : 'bad';
+    const body = lvl === 'noface' ? t('acc_noface_d') : t('acc_res', {e:err}) + ' ' + (lvl === 'good' ? '' : t('acc_tips'));
+    msg.innerHTML = `<h2>${t('acc_' + lvl)}</h2><p class="lead" style="margin:10px auto 18px">${body}</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn sky" id="accOk">${t('done')}</button><button class="btn ghost" id="accRedo">${t('calib_redo')}</button></div>`;
+    $('#accOk').onclick = () => { c.classList.remove('show'); msg.style.top = '50%'; toast(t('calib_done')); };
+    $('#accRedo').onclick = () => calibrate();
+  }, 3200);
+}
+
+/* ---------------- THERAPY ---------------- */
+const MOUTH = {
+  neutral:'M72 135 Q100 152 128 135 Q100 160 72 135 Z',
+  smile:'M52 126 Q100 176 148 126 Q100 158 52 126 Z',
+  tube:'M88 140 Q100 124 112 140 Q100 156 88 140 Z',
+  open:'M70 132 Q100 100 130 132 Q100 186 70 132 Z',
+  o:'M82 136 Q100 108 118 136 Q100 170 82 136 Z',
+  clock:'M66 132 Q100 118 134 132 Q100 168 66 132 Z',
+};
+const EXS = [
+ {id:'smile', e:'😁', mouth:'smile', dur:8, ru:['Улыбка','Растяните губы в широкой улыбке, зубы сомкнуты. Держите, пока идёт таймер.'], kk:['Күлкі','Ерінді кең күлкіге созыңыз, тістер жабық. Таймер біткенше ұстап тұрыңыз.']},
+ {id:'tube', e:'😗', mouth:'tube', dur:8, ru:['Трубочка','Вытяните губы вперёд трубочкой и держите.'], kk:['Түтікше','Ерінді алға түтікше етіп созып, ұстап тұрыңыз.']},
+ {id:'window', e:'😮', mouth:'open', dur:8, ru:['Окошко','Широко откройте рот и подержите, затем медленно закройте.'], kk:['Терезе','Аузыңызды кең ашып ұстаңыз, содан кейін баяу жабыңыз.']},
+ {id:'clock', e:'👅', mouth:'clock', dur:10, ru:['Часики','Приоткройте рот и двигайте кончиком языка влево-вправо, как маятник.'], kk:['Сағат','Аузыңызды сәл ашып, тіл ұшын маятник сияқты солға-оңға қозғаңыз.']},
+ {id:'vowels', e:'🅰️', mouth:'open', dur:12, ru:['Гласные','Чётко произносите вслед за Досом: А — О — У — И.'], kk:['Дауысты дыбыстар','Дос артынан анық айтыңыз: А — О — Ұ — І.']},
+ {id:'words', e:'🗣️', mouth:'neutral', dur:0, ru:['Повтори слово','Скажите слово в микрофон — система оценит чёткость.'], kk:['Сөзді қайтала','Сөзді микрофонға айтыңыз — жүйе анықтығын бағалайды.']},
+];
+const WORDS = {ru:['мама','вода','спасибо','молоко'], kk:['ана','су','рақмет','сәлем']};
+let session = null, sTimer = null, vowelTimer = null;
+const dosEl = $('#dos'), mouthEl = $('#mouth');
+function setMouth(k){ mouthEl.setAttribute('d', MOUTH[k] || MOUTH.neutral); dosEl.classList.toggle('clock', k === 'clock'); }
+function renderTherapy(){
+  if(session) { renderStep(); return; }
+  setMouth('neutral');
+  const list = EXS.map(x => `<li><span>${x.e}</span>${x[S.lang][0]}</li>`).join('');
+  $('#coachBody').innerHTML = `<h2 class="step-name">${t('coach_hello')}</h2><p class="step-desc">${t('coach_intro')}</p>
+    <button class="btn sky" id="thStart">${t('start')}</button><p class="muted" style="margin:22px 0 0;font-weight:600">${t('ex_list')}</p><ul class="ex-list">${list}</ul>`;
+  $('#thStart').onclick = startSession;
+  // reminder
+  const today = dayKey(new Date());
+  const doneToday = SESS.some(s => s.d === today);
+  $('#reminder').classList.toggle('hide', !!session);
+  $('#remText').textContent = doneToday ? t('rem_done') : t('rem')[new Date().getDate() % 3];
+  $('#remStart').style.display = doneToday ? 'none' : '';
+}
+$('#remStart').onclick = () => startSession();
+function startSession(){ session = {i:0, scores:[], w:0}; $('#reminder').classList.add('hide'); go('therapy'); renderStep(); }
+function stepDots(){ return `<div class="steps-dots">${EXS.map((_, i) => `<i class="${i < session.i ? 'done' : i === session.i ? 'cur' : ''}"></i>`).join('')}</div>`; }
+function renderStep(){
+  clearInterval(sTimer); clearInterval(vowelTimer);
+  const x = EXS[session.i];
+  if(!x){ return finishSession(); }
+  const [name, desc] = x[S.lang];
+  if(x.id === 'words'){
+    const words = WORDS[S.lang]; const w = words[session.w];
+    setMouth('neutral');
+    $('#coachBody').innerHTML = `${stepDots()}<h2 class="step-name">${name}</h2><p class="step-desc">${desc}</p>
+      <div class="muted">${session.w + 1} / ${words.length}</div><div class="word-target">${w}</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 16px">
+        <button class="btn sky" id="wSay">🎤 ${t('say_word')}</button><button class="btn ghost sm" id="wHear">🔊</button>
+        <span id="wRes"></span></div>
+      <div style="display:flex;gap:10px"><button class="btn" id="wNext">${t('next')}</button></div>`;
+    $('#wHear').onclick = () => { setMouth('o'); speak(w); setTimeout(() => setMouth('neutral'), 900); };
+    $('#wNext').onclick = () => { session.w++; if(session.w >= words.length){ session.i++; } renderStep(); };
+    $('#wSay').onclick = () => {
+      const L = makeListener({
+        onPartial: tx => { $('#wRes').textContent = '… ' + tx; },
+        onFinal: tx => { L.got = (L.got || '') + ' ' + tx; L.stop(); },
+        onEnd: () => {
+          if(L.ended) return; L.ended = true;
+          const heard = norm(L.got || '');
+          if(!heard){ $('#wRes').textContent = ''; return; }
+          const best = Math.max(...heard.split(' ').map(h => 1 - lev(h, norm(w)) / Math.max(h.length, w.length)));
+          const sc = Math.round(Math.max(0, best) * 100);
+          session.scores.push(sc);
+          const cls = sc >= 80 ? 'good' : sc >= 55 ? 'mid' : 'low';
+          $('#wRes').innerHTML = `<span class="score ${cls}">${t('your_result')}: ${sc}%</span> <span class="muted">«${heard}»</span>`;
+        }
+      });
+      if(!L){ $('#wRes').textContent = t('type_word'); return; }
+      $('#wRes').textContent = t('listening'); L.start();
+      setTimeout(() => { if(!L.ended) L.stop(); }, 5000);
+    };
+    return;
+  }
+  $('#coachBody').innerHTML = `${stepDots()}<h2 class="step-name">${x.e} ${name}</h2><p class="step-desc">${desc}</p>
+    ${x.id === 'vowels' ? '<div style="margin-bottom:16px"><span class="bubble" id="vb">А</span></div>' : ''}
+    <div class="timer"><div class="bar"><i id="tBar"></i></div><b id="tNum">${x.dur}</b></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="sNext">${t('next')}</button><button class="btn ghost sm" id="sSkip">${t('skip')}</button></div>`;
+  setMouth(x.mouth);
+  if(x.id === 'vowels'){
+    const seq = S.lang === 'kk' ? [['А','open'],['О','o'],['Ұ','tube'],['І','smile']] : [['А','open'],['О','o'],['У','tube'],['И','smile']];
+    let k = 0;
+    const tick = () => { const [l, m] = seq[k % seq.length]; const vb = $('#vb'); if(vb) vb.textContent = l; setMouth(m); speak(l.toLowerCase()); k++; };
+    tick(); vowelTimer = setInterval(tick, 3000);
+  }
+  let left = x.dur; const t0 = Date.now();
+  sTimer = setInterval(() => {
+    const el = (Date.now() - t0) / 1000; left = Math.max(0, Math.ceil(x.dur - el));
+    const bar = $('#tBar'), num = $('#tNum'); if(!bar){ clearInterval(sTimer); return; }
+    bar.style.width = Math.min(100, el / x.dur * 100) + '%'; num.textContent = left;
+    if(el >= x.dur){ clearInterval(sTimer); clearInterval(vowelTimer); setMouth('neutral'); $('#sNext').classList.add('sky'); }
+  }, 250);
+  $('#sNext').onclick = () => { session.i++; renderStep(); };
+  $('#sSkip').onclick = () => { session.i++; renderStep(); };
+}
+function finishSession(){
+  clearInterval(sTimer); clearInterval(vowelTimer);
+  const sc = session.scores.length ? Math.round(session.scores.reduce((a,b) => a+b, 0) / session.scores.length) : (lastScore() || 60);
+  const today = dayKey(new Date());
+  SESS = SESS.filter(s => s.d !== today); SESS.push({d:today, s:sc}); store.set('sess', SESS);
+  session = null; setMouth('smile');
+  $('#coachBody').innerHTML = `<h2 class="step-name">🎉 ${t('finished_t')}</h2><p class="step-desc">${t('finished_d', {n:sc})}</p><button class="btn ghost" id="thAgain">${t('again')}</button>`;
+  $('#thAgain').onclick = () => { renderTherapy(); };
+  renderProgress();
+  $('#remText').textContent = t('rem_done'); $('#remStart').style.display = 'none';
+  speak(t('finished_t'));
+}
+/* progress */
+let SESS = store.get('sess', []);
+const dayKey = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const lastScore = () => SESS.length ? SESS.slice().sort((a,b) => a.d < b.d ? -1 : 1).at(-1).s : null;
+function renderProgress(){
+  const sorted = SESS.slice().sort((a,b) => a.d < b.d ? -1 : 1);
+  const ls = lastScore();
+  $('#clarity').textContent = ls === null ? '—' : ls + '%';
+  $('#clarityBar').style.width = (ls || 0) + '%';
+  $('#stSessions').textContent = SESS.length;
+  // streak
+  let streak = 0; const d = new Date(); const set = new Set(SESS.map(s => s.d));
+  if(!set.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  while(set.has(dayKey(d))){ streak++; d.setDate(d.getDate() - 1); }
+  $('#stStreak').textContent = streak;
+  const now = new Date(); const ym = dayKey(now).slice(0,7);
+  $('#stMonth').textContent = SESS.filter(s => s.d.startsWith(ym)).length;
+  // calendar
+  const months = {ru:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'], kk:['Қаңтар','Ақпан','Наурыз','Сәуір','Мамыр','Маусым','Шілде','Тамыз','Қыркүйек','Қазан','Қараша','Желтоқсан']};
+  const dn = {ru:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'], kk:['Дс','Сс','Ср','Бс','Жм','Сн','Жк']};
+  $('#calTitle').textContent = months[S.lang][now.getMonth()] + ' ' + now.getFullYear();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1); const off = (first.getDay() + 6) % 7;
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let h = dn[S.lang].map(x => `<div class="dn">${x}</div>`).join('');
+  for(let i = 0; i < off; i++) h += '<div></div>';
+  for(let i = 1; i <= days; i++){
+    const k = ym + '-' + String(i).padStart(2,'0');
+    h += `<div class="d ${set.has(k) ? 'done' : ''} ${i === now.getDate() ? 'today' : ''}">${i}</div>`;
+  }
+  $('#cal').innerHTML = h;
+  // sparkline
+  const pts = sorted.slice(-12).map(s => s.s);
+  const sp = $('#spark');
+  if(pts.length < 2){ sp.innerHTML = ''; sp.style.display = 'none'; return; }
+  sp.style.display = '';
+  const W = 300, H = 90, pad = 8;
+  const xy = pts.map((v, i) => [pad + i * (W - 2*pad) / (pts.length - 1), H - pad - (v / 100) * (H - 2*pad)]);
+  const line = xy.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  sp.innerHTML = `<path d="${line} L${W-pad} ${H} L${pad} ${H} Z" fill="var(--ok)" opacity=".12"/><path d="${line}" fill="none" stroke="var(--ok)" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+    xy.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--ok)"/>`).join('');
+}
+$('#demoHist').onclick = () => {
+  const out = []; const d = new Date(); d.setDate(d.getDate() - 1);
+  let s = 48;
+  for(let i = 0; i < 18; i++){ if(i % 6 !== 4){ out.push({d:dayKey(d), s:Math.min(95, Math.round(s))}); } s += 2.1 + Math.random() * 1.5; d.setDate(d.getDate() - 1); }
+  out.reverse().forEach((o, i, arr) => o.s = Math.round(48 + i * (34 / arr.length) + Math.random() * 3));
+  SESS = out; store.set('sess', SESS); renderProgress(); renderTherapy();
+};
+$('#notifBtn').onclick = async () => {
+  try{
+    if(!('Notification' in window)) throw 0;
+    const p = await Notification.requestPermission();
+    if(p !== 'granted') throw 0;
+    new Notification('VoiceBridge', {body: t('rem')[0]});
+    toast(t('notif_on'));
+  }catch(e){ toast(t('notif_off')); }
+};
+
+/* ---------------- ABOUT table ---------------- */
+function renderCmp(){
+  const h = t('cmp_h'), r = t('cmp_r');
+  const mark = v => v.startsWith('✓') ? `<span class="y">${v}</span>` : v.startsWith('✗') ? `<span class="n">${v}</span>` : v;
+  $('#cmp').innerHTML = `<thead><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${r.map(row => `<tr>${row.map((c, i) => `<td>${i ? mark(c) : c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+/* ---------------- settings ---------------- */
+$$('[data-open-settings]').forEach(b => b.onclick = () => $('#settings').classList.add('show'));
+$('#closeSettings').onclick = () => $('#settings').classList.remove('show');
+$('#settings').addEventListener('click', e => { if(e.target.id === 'settings') $('#settings').classList.remove('show'); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ $('#settings').classList.remove('show'); $('#calib').classList.remove('show'); } });
+$('#sTheme').onclick = () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; save(); applyPrefs(); };
+$('#sSize').onclick = () => { S.size = S.size === 'large' ? 'normal' : 'large'; save(); applyPrefs(); };
+$('#sTremor').onclick = () => { S.tremor = !S.tremor; save(); applyPrefs(); };
+$('#sDistort').onclick = () => { S.distort = !S.distort; save(); applyPrefs(); };
+$('#sDwell').oninput = e => { S.dwell = +e.target.value; save(); $('#dwellVal').textContent = (S.dwell/1000).toFixed(1) + ' ' + t('sec'); updateEyeNote(); };
+$('#sRate').oninput = e => { S.rate = +e.target.value; save(); $('#rateVal').textContent = '×' + S.rate.toFixed(2); };
+$('#sKey').onchange = e => { S.key = e.target.value.trim(); save(); updateBadge(); };
+$$('.lang button').forEach(b => b.onclick = () => { S.lang = b.dataset.lang; save(); demoIdx = 0; applyPrefs(); runHeroDemo(); scheduleCompose(); });
+$('#langM').onclick = () => { S.lang = S.lang === 'kk' ? 'ru' : 'kk'; save(); demoIdx = 0; applyPrefs(); runHeroDemo(); scheduleCompose(); };
+
+/* ---------------- logo ---------------- */
+const LOGO = `<svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#0A2540"/><path d="M6 28 Q20 8 34 28" fill="none" stroke="#F2B705" stroke-width="3" stroke-linecap="round"/><g stroke="#1C8FC4" stroke-width="3" stroke-linecap="round"><line x1="12" y1="22" x2="12" y2="30"/><line x1="17" y1="18" x2="17" y2="30"/><line x1="23" y1="18" x2="23" y2="30"/><line x1="28" y1="22" x2="28" y2="30"/></g></svg>`;
+$('#logo').innerHTML = LOGO; $('#logoM').innerHTML = LOGO;
+
+/* ---------------- boot ---------------- */
+if(S.mode === 'camera') S.mode = 'mouse';
+applyPrefs();
+go(location.hash.slice(1) || 'home');
+</script>
+</body>
+</html>
